@@ -1,5 +1,6 @@
 """SDK 执行器：使用 Claude Agent SDK 构建评审代理"""
 import anyio
+import os
 from pathlib import Path
 from claude_agent_sdk import (
     query,
@@ -29,34 +30,49 @@ def load_prompt(agent_name: str) -> str:
 
 def create_agent_options() -> ClaudeAgentOptions:
     """创建包含所有评审代理的配置"""
+    # 从环境变量读取配置
+    api_key = os.environ.get("ANTHROPIC_AUTH_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    model = os.environ.get("ANTHROPIC_MODEL", "sonnet")
+
+    # 构建环境变量字典传给 SDK
+    env = {}
+    if api_key:
+        env["ANTHROPIC_API_KEY"] = api_key
+    if base_url:
+        env["ANTHROPIC_BASE_URL"] = base_url
+    if model:
+        env["ANTHROPIC_MODEL"] = model
+
     return ClaudeAgentOptions(
         agents={
             "moderator": AgentDefinition(
                 description="分诊与控场代理",
                 prompt=load_prompt("moderator"),
                 tools=["Read", "Write", "Bash"],
-                model="sonnet",
+                model=model,
             ),
             "reviewer_a": AgentDefinition(
                 description="正方评审代理",
                 prompt=load_prompt("reviewer_a"),
                 tools=["Read", "Write", "Bash"],
-                model="sonnet",
+                model=model,
             ),
             "reviewer_b": AgentDefinition(
                 description="反方评审代理",
                 prompt=load_prompt("reviewer_b"),
                 tools=["Read", "Write", "Bash"],
-                model="sonnet",
+                model=model,
             ),
             "summarizer": AgentDefinition(
                 description="共识汇总代理",
                 prompt=load_prompt("summarizer"),
                 tools=["Read", "Write"],
-                model="sonnet",
+                model=model,
             ),
         },
         setting_sources=["user", "project"],
+        env=env,
     )
 
 
@@ -104,18 +120,7 @@ async def run_agents_parallel(issue_number: int, agents: list[str], context: str
 
 请以 [Agent: {{agent_name}}] 为前缀发布你的回复。"""
 
-    async def run_one(agent_name: str) -> tuple[str, str]:
-        prompt = base_prompt.format(agent_name=agent_name)
-        response = await run_single_agent(prompt, agent_name)
-        return agent_name, response
-
     results = {}
-    async with anyio.create_task_group() as tg:
-        for agent in agents:
-            tg.start_soon(run_one, agent)
-
-    # 收集结果
-    # 由于 task_group 不直接返回结果，使用另一种方式
     async with anyio.create_task_group() as tg:
         async def run_and_store(agent_name: str):
             prompt = base_prompt.format(agent_name=agent_name)

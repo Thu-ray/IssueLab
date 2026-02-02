@@ -7,12 +7,40 @@ import tempfile
 from issuelab.sdk_executor import run_agents_parallel
 from issuelab.parser import parse_mentions
 
+# 评论最大长度 (GitHub 限制 65536，实际使用 10000 留余量)
+MAX_COMMENT_LENGTH = 10000
+
+
+def truncate_text(text: str, max_length: int = MAX_COMMENT_LENGTH) -> str:
+    """截断文本到指定长度，保留完整段落"""
+    suffix = "\n\n_(内容已截断)_"
+    suffix_len = len(suffix)
+
+    if len(text) <= max_length:
+        return text
+
+    # 预留后缀空间，截断内容部分
+    available = max_length - suffix_len
+    truncated = text[:available]
+
+    # 尝试在最后一个完整段落后截断
+    last_newline = truncated.rfind('\n\n')
+
+    if last_newline > available * 0.5:  # 保留至少 50% 的内容
+        return truncated[:last_newline].strip() + suffix
+
+    # 否则直接在字符边界截断
+    return truncated.strip() + suffix
+
 
 def post_comment(issue_number: int, body: str) -> bool:
-    """发布评论到 Issue"""
+    """发布评论到 Issue，自动截断过长内容"""
+    # 截断内容
+    truncated_body = truncate_text(body, MAX_COMMENT_LENGTH)
+
     # 使用临时文件避免命令行长度限制
     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
-        f.write(body)
+        f.write(truncated_body)
         f.flush()
         result = subprocess.run(
             ["gh", "issue", "comment", str(issue_number), "--body-file", f.name],
@@ -21,6 +49,9 @@ def post_comment(issue_number: int, body: str) -> bool:
             env={**os.environ, "GH_TOKEN": os.environ.get("GITHUB_TOKEN", "")}
         )
         os.unlink(f.name)
+
+    if result.returncode != 0:
+        print(f"Error: {result.stderr}")
     return result.returncode == 0
 
 

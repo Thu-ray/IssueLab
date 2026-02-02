@@ -1,0 +1,188 @@
+name: Issue Orchestrator
+
+# 支持三种触发方式：@mention、/command、标签变更
+on:
+  issue_comment:
+    types: [created, edited]
+  issues:
+    types: [labeled]
+
+# 并发控制：同一 Issue 不会并发运行
+concurrency:
+  group: ${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  # ========== 标签触发：state:ready-for-review ==========
+  auto-trigger-review:
+    if: github.event_name == 'issues' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'state:ready-for-review'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run full review process
+        run: |
+          echo "=== 标签触发评审开始 ==="
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "state:review" \
+            --remove-label "state:ready-for-review" \
+            --repo ${{ github.repository }}
+
+          echo "Running review flow..."
+          uv run python -m issuelab review --issue ${{ github.event.issue.number }}
+
+          echo "标记需要总结..."
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "bot:needs-summary" \
+            --repo ${{ github.repository }}
+
+          echo "=== 评审完成 ==="
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ========== @mention 触发（并行执行） ==========
+  process-mention:
+    if: github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Parse @mentions
+        id: parse
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          # 提取 @mention 并转为小写
+          MENTIONS=$(echo "$COMMENT" | grep -o '@[a-zA-Z_]*' | sed 's/@//' | tr '[:upper:]' '[:lower:]' | tr '\n' ' ')
+          echo "mentions=$MENTIONS" >> $GITHUB_OUTPUT
+          echo "解析到 mentions: $MENTIONS"
+
+      - name: Run parallel agents
+        if: steps.parse.outputs.mentions != ''
+        run: |
+          echo "=== 并行执行代理 ==="
+          uv run python -m issuelab execute \
+            --issue ${{ github.event.issue.number }} \
+            --agents "${{ steps.parse.outputs.mentions }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ========== /command 触发（顺序执行） ==========
+  process-command:
+    if: github.event_name == 'issue_comment' &&
+        (contains(github.event.comment.body, '/review') ||
+         contains(github.event.comment.body, '/summarize') ||
+         contains(github.event.comment.body, '/quiet') ||
+         contains(github.event.comment.body, '/triage')) &&
+        !contains(github.event.comment.body, '@')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Extract command
+        id: extract
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if echo "$COMMENT" | grep -q '/review'; then
+            echo "command=/review" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/summarize'; then
+            echo "command=/summarize" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/quiet'; then
+            echo "command=/quiet" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/triage'; then
+            echo "command=/triage" >> $GITHUB_OUTPUT
+          fi
+
+      # 处理 /quiet 命令
+      - name: Handle quiet command
+        if: steps.extract.outputs.command == '/quiet'
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "bot:quiet" \
+            --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 处理 /triage 命令：仅运行 Moderator 分诊
+      - name: Handle triage command
+        if: steps.extract.outputs.command == '/triage'
+        run: |
+          uv run python -m issuelab execute \
+            --issue ${{ github.event.issue.number }} \
+            --agents "moderator"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      # 处理 /review 命令：运行完整评审流程
+      - name: Run review process
+        if: steps.extract.outputs.command == '/review'
+        run: |
+          echo "=== /review 命令触发评审 ==="
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "state:review" \
+            --repo ${{ github.repository }}
+
+          uv run python -m issuelab review --issue ${{ github.event.issue.number }}
+
+          echo "标记需要总结..."
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label "bot:needs-summary" \
+            --repo ${{ github.repository }}
+
+          echo "=== 评审完成 ==="
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      # 处理 /summarize 命令
+      - name: Run summarizer
+        if: steps.extract.outputs.command == '/summarize'
+        run: |
+          uv run python -m issuelab execute \
+            --issue ${{ github.event.issue.number }} \
+            --agents "summarizer"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

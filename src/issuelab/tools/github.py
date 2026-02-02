@@ -44,6 +44,10 @@ def get_issue_info(issue_number: int, format_comments: bool = False) -> dict:
 
     data = json.loads(result.stdout)
 
+    # 先计算评论数（使用原始列表）
+    comment_count = len(data.get("comments", []))
+    data["comment_count"] = comment_count
+
     # 格式化评论（如果需要）
     if format_comments:
         comments_list = []
@@ -54,8 +58,6 @@ def get_issue_info(issue_number: int, format_comments: bool = False) -> dict:
             comments_list.append(f"- **[{author}]** ({created_at}):\n{body}")
 
         data["comments"] = "\n\n".join(comments_list)
-
-    data["comment_count"] = len(data.get("comments", []))
 
     return data
 

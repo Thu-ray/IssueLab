@@ -2,13 +2,23 @@
 import asyncio
 import argparse
 import os
+import sys
 import subprocess
 import tempfile
+from pathlib import Path
 from issuelab.sdk_executor import run_agents_parallel, run_observer, get_agent_matrix_markdown, discover_agents
 from issuelab.parser import parse_mentions
+from issuelab.logging_config import setup_logging, get_logger
 
 # 评论最大长度 (GitHub 限制 65536，实际使用 10000 留余量)
 MAX_COMMENT_LENGTH = 10000
+
+# 初始化日志
+log_level = os.environ.get("LOG_LEVEL", "INFO")
+log_file = os.environ.get("LOG_FILE")
+log_file_path = Path(log_file) if log_file else None
+setup_logging(level=log_level, log_file=log_file_path)
+logger = get_logger(__name__)
 
 
 def truncate_text(text: str, max_length: int = MAX_COMMENT_LENGTH) -> str:

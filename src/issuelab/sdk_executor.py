@@ -273,7 +273,9 @@ async def run_single_agent(prompt: str, agent_name: str) -> str:
 
 
 async def run_agents_parallel(issue_number: int, agents: list[str], context: str = "", comment_count: int = 0) -> dict:
-    """并行运行多个代理
+    """串行运行多个代理（函数名保持向后兼容）
+
+    注意：虽然函数名为 parallel，但实际改为串行执行以避免 Claude Agent SDK 的资源竞争问题。
 
     Args:
         issue_number: Issue 编号
@@ -296,15 +298,13 @@ async def run_agents_parallel(issue_number: int, agents: list[str], context: str
 请以 [Agent: {{agent_name}}] 为前缀发布你的回复。"""
 
     results = {}
-    async with anyio.create_task_group() as tg:
 
-        async def run_and_store(agent_name: str):
-            prompt = base_prompt.format(agent_name=agent_name)
-            response = await run_single_agent(prompt, agent_name)
-            results[agent_name] = response
-
-        for agent in agents:
-            tg.start_soon(run_and_store, agent)
+    # 串行执行以避免 Claude Agent SDK 资源竞争
+    for agent in agents:
+        prompt = base_prompt.format(agent_name=agent)
+        logger.info(f"串行执行 agent: {agent} ({agents.index(agent) + 1}/{len(agents)})")
+        response = await run_single_agent(prompt, agent)
+        results[agent] = response
 
     return results
 

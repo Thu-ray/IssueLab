@@ -1,0 +1,28 @@
+name: Paper
+description: 论文讨论
+title: "[Paper] "
+labels: ["type:paper", "state:triage"]
+body:
+  - type: textarea
+    id: link
+    attributes:
+      label: 论文链接 / DOI
+      description: 论文的 URL 或 DOI
+      placeholder: https://arxiv.org/abs/xxxx
+    validations:
+      required: true
+  - type: textarea
+    id: key_points
+    attributes:
+      label: 核心贡献（<=3点）
+      description: 简述论文的核心贡献
+      placeholder: 1. ...&#10;2. ...&#10;3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: 希望评审的点
+      description: 你最想让代理关注或验证的问题
+    validations:
+      required: false

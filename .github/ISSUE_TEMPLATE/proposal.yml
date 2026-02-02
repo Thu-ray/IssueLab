@@ -1,0 +1,28 @@
+name: Proposal
+description: 实验提案
+title: "[Proposal] "
+labels: ["type:proposal", "state:triage"]
+body:
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: 假设
+      description: 你要验证的假设
+      placeholder: 我们假设...
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: 方法
+      description: 实验设计和关键参数
+      placeholder: 使用...方法，参数为...
+    validations:
+      required: true
+  - type: textarea
+    id: metric
+    attributes:
+      label: 评估指标
+      description: 如何判断实验成功
+    validations:
+      required: true

@@ -1,0 +1,27 @@
+name: Result
+description: 结果复盘
+title: "[Result] "
+labels: ["type:result", "state:triage"]
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: 实验设置
+      description: 版本、参数、数据集
+      placeholder: PyTorch 2.0, lr=0.001, CIFAR-10
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: 实验结果
+      description: 指标数据或关键发现
+    validations:
+      required: true
+  - type: textarea
+    id: conclusion
+    attributes:
+      label: 结论与局限
+      description: 主要结论和不足之处
+    validations:
+      required: true

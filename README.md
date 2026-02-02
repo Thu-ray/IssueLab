@@ -1,22 +1,8 @@
 # IssueLab
 
-AI 辅助科研评审系统。
+AI 辅助科研评审系统。基于 GitHub Issues + Claude Agent SDK。
 
-## 快速开始
-
-```bash
-# 克隆仓库
-git clone https://github.com/gqy20/IssueLab.git
-cd IssueLab
-
-# 安装 uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 同步依赖
-uv sync
-```
-
-## 使用方法
+## 使用
 
 **@mention 并行触发**（推荐）：
 ```markdown
@@ -25,13 +11,24 @@ uv sync
 
 **/command 顺序触发**：
 ```markdown
-/review
+/review      # 完整评审流程
+/summarize   # 汇总共识
+/triage      # 仅 Moderator 分诊
+/quiet       # 机器人静默
 ```
 
-## 文档
+## 模板
 
-- [MVP 方案](docs/MVP.md)
+| 模板 | 用途 |
+|------|------|
+| Paper | 论文讨论 |
+| Proposal | 实验提案 |
+| Result | 结果复盘 |
+| Question | 技术问题 |
 
-## 许可证
+## 本地开发
 
-MIT
+```bash
+uv sync
+uv run python -m issuelab execute --issue 1 --agents moderator
+```

@@ -1,0 +1,19 @@
+name: Question
+description: 技术问题
+title: "[Q] "
+labels: ["type:question", "state:triage"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: 问题背景
+      description: 描述你遇到的问题
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试
+      description: 已尝试的解决方法
+    validations:
+      required: false

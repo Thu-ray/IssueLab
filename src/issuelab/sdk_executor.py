@@ -2,6 +2,7 @@
 
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 import anyio
@@ -20,6 +21,146 @@ logger = get_logger(__name__)
 # 提示词目录
 PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
 AGENTS_DIR = Path(__file__).parent.parent.parent / "agents"
+
+
+@dataclass
+class AgentConfig:
+    """Agent 执行配置（超时控制）
+
+    官方推荐使用 max_turns 防止无限循环：
+    https://platform.claude.com/docs/en/agent-sdk/hosting
+
+    Attributes:
+        max_turns: 最大对话轮数（防止无限循环）
+        max_budget_usd: 最大花费限制（成本保护）
+        timeout_seconds: 总超时时间（秒）
+    """
+
+    max_turns: int = 3
+    max_budget_usd: float = 0.50
+    timeout_seconds: int = 180
+
+
+# 场景配置
+SCENE_CONFIGS: dict[str, AgentConfig] = {
+    "quick": AgentConfig(
+        max_turns=2,
+        max_budget_usd=0.20,
+        timeout_seconds=60,
+    ),
+    "review": AgentConfig(
+        max_turns=3,
+        max_budget_usd=0.50,
+        timeout_seconds=180,
+    ),
+    "deep": AgentConfig(
+        max_turns=5,
+        max_budget_usd=1.00,
+        timeout_seconds=300,
+    ),
+}
+
+
+def get_agent_config_for_scene(scene: str = "review") -> AgentConfig:
+    """根据场景获取配置
+
+    Args:
+        scene: 场景名称 ("quick", "review", "deep")
+        default: "review"
+
+    Returns:
+        AgentConfig: 对应的场景配置
+    """
+    return SCENE_CONFIGS.get(scene, SCENE_CONFIGS["review"])
+
+
+# ========== 缓存机制 ==========
+
+# 全局缓存：存储 Agent 选项
+_cached_agent_options: dict[tuple, ClaudeAgentOptions] = {}
+
+
+def clear_agent_options_cache() -> None:
+    """清除 Agent 选项缓存
+
+    在测试或配置更改后调用此函数以确保使用最新的配置。
+    """
+    global _cached_agent_options
+    _cached_agent_options = {}
+    logger.info("Agent 选项缓存已清除")
+
+
+def _create_agent_options_impl(
+    max_turns: int | None,
+    max_budget_usd: float | None,
+) -> ClaudeAgentOptions:
+    """创建 Agent 选项的实际实现（无缓存）"""
+    env = Config.get_anthropic_env()
+    env["CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK"] = "true"
+
+    arxiv_storage_path = Config.get_arxiv_storage_path()
+
+    mcp_servers = []
+    if Config.is_arxiv_mcp_enabled():
+        mcp_servers.append(
+            {
+                "name": "arxiv-mcp-server",
+                "command": "arxiv-mcp-server",
+                "args": ["--storage-path", arxiv_storage_path],
+                "env": env.copy(),
+            }
+        )
+
+    if Config.is_github_mcp_enabled():
+        mcp_servers.append(
+            {
+                "name": "github-mcp-server",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-github"],
+                "env": env.copy(),
+            }
+        )
+
+    agents = discover_agents()
+
+    base_tools = ["Read", "Write", "Bash"]
+
+    arxiv_tools = []
+    if os.environ.get("ENABLE_ARXIV_MCP", "true").lower() == "true":
+        arxiv_tools = ["search_papers", "download_paper", "read_paper", "list_papers"]
+
+    github_tools = []
+    if os.environ.get("ENABLE_GITHUB_MCP", "true").lower() == "true":
+        github_tools = [
+            "search_repositories",
+            "get_file_contents",
+            "list_commits",
+            "search_code",
+            "get_issue",
+        ]
+
+    all_tools = base_tools + arxiv_tools + github_tools
+    model = Config.get_anthropic_model()
+
+    agent_definitions = {}
+    for name, config in agents.items():
+        if name == "observer":
+            continue
+        agent_definitions[name] = AgentDefinition(
+            description=config["description"],
+            prompt=config["prompt"],
+            tools=all_tools,
+            model=model,
+        )
+
+    return ClaudeAgentOptions(
+        agents=agent_definitions,
+        max_turns=max_turns if max_turns is not None else AgentConfig().max_turns,
+        max_budget_usd=max_budget_usd if max_budget_usd is not None else AgentConfig().max_budget_usd,
+        setting_sources=["user", "project"],
+        env=env,
+        mcp_servers=mcp_servers,
+    )
 
 
 def parse_agent_metadata(content: str) -> dict | None:
@@ -184,83 +325,47 @@ def load_prompt(agent_name: str) -> str:
     return ""
 
 
-def create_agent_options() -> ClaudeAgentOptions:
-    """创建包含所有评审代理的配置（动态发现）"""
-    # 从配置模块获取环境变量
-    env = Config.get_anthropic_env()
-    arxiv_storage_path = Config.get_arxiv_storage_path()
+def create_agent_options(
+    max_turns: int | None = None,
+    max_budget_usd: float | None = None,
+) -> ClaudeAgentOptions:
+    """创建包含所有评审代理的配置（动态发现）
 
-    # MCP 服务器配置
-    mcp_servers = []
-    if Config.is_arxiv_mcp_enabled():
-        # 使用预安装的 arxiv-mcp-server (通过 uv tool install 安装)
-        # 而不是 uv tool run（每次都重新安装，导致超时）
-        mcp_servers.append(
-            {
-                "name": "arxiv-mcp-server",
-                "command": "arxiv-mcp-server",  # 直接使用已安装的命令
-                "args": [
-                    "--storage-path",
-                    arxiv_storage_path,
-                ],
-                "env": env.copy(),
-            }
-        )
+    官方推荐的超时控制参数：
+    - max_turns: 限制对话轮数，防止无限循环
+    - max_budget_usd: 限制花费，防止意外支出
 
-    # GitHub MCP 服务器配置
-    if Config.is_github_mcp_enabled():
-        mcp_servers.append(
-            {
-                "name": "github-mcp-server",
-                "command": "npx",
-                "args": ["-y", "@modelcontextprotocol/server-github"],
-                "env": env.copy(),
-            }
-        )
+    Args:
+        max_turns: 最大对话轮数（默认使用 AgentConfig 默认值）
+        max_budget_usd: 最大花费限制（默认使用 AgentConfig 默认值）
 
-    # 动态获取所有 Agent（排除 observer，它不能自己触发自己）
-    agents = discover_agents()
+    Returns:
+        ClaudeAgentOptions: 配置好的 SDK 选项
 
-    # 根据环境变量决定是否启用 MCP 工具
-    base_tools = ["Read", "Write", "Bash"]
+    Note:
+        此函数使用缓存来避免重复创建相同的配置。
+        如果需要强制刷新配置，请先调用 clear_agent_options_cache()。
+    """
+    # 使用默认值
+    effective_max_turns = max_turns if max_turns is not None else AgentConfig().max_turns
+    effective_max_budget = max_budget_usd if max_budget_usd is not None else AgentConfig().max_budget_usd
 
-    arxiv_tools = []
-    if os.environ.get("ENABLE_ARXIV_MCP", "true").lower() == "true":
-        arxiv_tools = ["search_papers", "download_paper", "read_paper", "list_papers"]
+    # 缓存键：使用参数元组
+    cache_key = (effective_max_turns, effective_max_budget)
 
-    github_tools = []
-    if os.environ.get("ENABLE_GITHUB_MCP", "true").lower() == "true":
-        # GitHub 工具 - 用于搜索开源实现、查看代码仓库
-        github_tools = [
-            "search_repositories",  # 搜索仓库
-            "get_file_contents",  # 读取文件
-            "list_commits",  # 查看提交历史
-            "search_code",  # 搜索代码
-            "get_issue",  # 获取 Issue
-        ]
+    # 检查缓存
+    if cache_key in _cached_agent_options:
+        logger.debug(f"使用缓存的 Agent 选项 (key={cache_key})")
+        return _cached_agent_options[cache_key]
 
-    all_tools = base_tools + arxiv_tools + github_tools
+    # 创建新配置
+    options = _create_agent_options_impl(max_turns, max_budget_usd)
 
-    # 获取模型配置
-    model = Config.get_anthropic_model()
+    # 存入缓存
+    _cached_agent_options[cache_key] = options
+    logger.debug(f"创建新的 Agent 选项并缓存 (key={cache_key})")
 
-    agent_definitions = {}
-    for name, config in agents.items():
-        if name == "observer":
-            continue  # Observer 单独处理，不在此处注册
-        agent_definitions[name] = AgentDefinition(
-            description=config["description"],
-            prompt=config["prompt"],
-            tools=all_tools,
-            model=model,
-        )
-
-    return ClaudeAgentOptions(
-        agents=agent_definitions,
-        setting_sources=["user", "project"],
-        env=env,
-        mcp_servers=mcp_servers,
-    )
+    return options
 
 
 async def run_single_agent(prompt: str, agent_name: str) -> str:

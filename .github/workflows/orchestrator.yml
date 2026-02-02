@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.event.issue.number }}
   cancel-in-progress: true
 
+# 全局超时设置：10 分钟
+timeout-minutes: 10
+
 permissions:
   issues: write
   contents: read
@@ -30,15 +33,24 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
 
       - name: Set up Python
-        run: uv python install 3.13
+        run: uv python install 3.12
 
       - name: Install dependencies
         run: uv sync
 
-      - name: Install arxiv-mcp-server
-        run: uv tool install arxiv-mcp-server
+      - name: Cache arxiv-mcp-server
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/uv/tools/arxiv-mcp-server
+          key: arxiv-mcp-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            arxiv-mcp-${{ runner.os }}-
 
       - name: Run full review process
         run: |
@@ -67,6 +79,10 @@ jobs:
           ARXIV_STORAGE_PATH: ${{ github.workspace }}/.arxiv-papers
           ENABLE_ARXIV_MCP: true
           ENABLE_GITHUB_MCP: false
+          # SDK 优化：跳过版本检查，节省 2 秒
+          CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
+          # SDK 优化：减少等待时间
+          CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"
 
   # ========== @mention 触发（并行执行） ==========
   process-mention:
@@ -80,15 +96,16 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
 
       - name: Set up Python
-        run: uv python install 3.13
+        run: uv python install 3.12
 
       - name: Install dependencies
         run: uv sync
-
-      - name: Install arxiv-mcp-server
-        run: uv tool install arxiv-mcp-server
 
       - name: Skip - @mentions handled by dispatch_agents.yml
         run: |
@@ -112,15 +129,24 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
 
       - name: Set up Python
-        run: uv python install 3.13
+        run: uv python install 3.12
 
       - name: Install dependencies
         run: uv sync
 
-      - name: Install arxiv-mcp-server
-        run: uv tool install arxiv-mcp-server
+      - name: Cache arxiv-mcp-server
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/uv/tools/arxiv-mcp-server
+          key: arxiv-mcp-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            arxiv-mcp-${{ runner.os }}-
 
       - name: Extract command
         id: extract
@@ -162,6 +188,8 @@ jobs:
           ARXIV_STORAGE_PATH: ${{ github.workspace }}/.arxiv-papers
           ENABLE_ARXIV_MCP: true
           ENABLE_GITHUB_MCP: false
+          CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
+          CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"
 
       # 处理 /review 命令：运行完整评审流程
       - name: Run review process
@@ -190,6 +218,8 @@ jobs:
           ARXIV_STORAGE_PATH: ${{ github.workspace }}/.arxiv-papers
           ENABLE_ARXIV_MCP: true
           ENABLE_GITHUB_MCP: false
+          CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
+          CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"
 
       # 处理 /summarize 命令
       - name: Run summarizer
@@ -207,3 +237,5 @@ jobs:
           ARXIV_STORAGE_PATH: ${{ github.workspace }}/.arxiv-papers
           ENABLE_ARXIV_MCP: true
           ENABLE_GITHUB_MCP: false
+          CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
+          CLAUDE_CODE_STREAM_CLOSE_TIMEOUT: "30000"

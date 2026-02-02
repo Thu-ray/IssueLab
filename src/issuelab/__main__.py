@@ -42,11 +42,16 @@ def post_comment(issue_number: int, body: str) -> bool:
     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
         f.write(truncated_body)
         f.flush()
+        # 优先使用 GH_TOKEN，fallback 到 GITHUB_TOKEN
+        env = os.environ.copy()
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        if token:
+            env["GH_TOKEN"] = token
         result = subprocess.run(
             ["gh", "issue", "comment", str(issue_number), "--body-file", f.name],
             capture_output=True,
             text=True,
-            env={**os.environ, "GH_TOKEN": os.environ.get("GITHUB_TOKEN", "")}
+            env=env
         )
         os.unlink(f.name)
 

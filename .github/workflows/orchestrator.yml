@@ -46,7 +46,7 @@ jobs:
             --repo ${{ github.repository }}
 
           echo "Running review flow..."
-          uv run python -m issuelab review --issue ${{ github.event.issue.number }}
+          uv run python -m issuelab review --issue ${{ github.event.issue.number }} --post
 
           echo "标记需要总结..."
           gh issue edit ${{ github.event.issue.number }} \
@@ -94,7 +94,8 @@ jobs:
           echo "=== 并行执行代理 ==="
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
-            --agents "${{ steps.parse.outputs.mentions }}"
+            --agents "${{ steps.parse.outputs.mentions }}" \
+            --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_AUTH_KEY: ${{ secrets.ANTHROPIC_AUTH_KEY }}
@@ -154,7 +155,8 @@ jobs:
         run: |
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
-            --agents "moderator"
+            --agents "moderator" \
+            --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_AUTH_KEY: ${{ secrets.ANTHROPIC_AUTH_KEY }}
@@ -170,7 +172,7 @@ jobs:
             --add-label "state:review" \
             --repo ${{ github.repository }}
 
-          uv run python -m issuelab review --issue ${{ github.event.issue.number }}
+          uv run python -m issuelab review --issue ${{ github.event.issue.number }} --post
 
           echo "标记需要总结..."
           gh issue edit ${{ github.event.issue.number }} \
@@ -190,7 +192,8 @@ jobs:
         run: |
           uv run python -m issuelab execute \
             --issue ${{ github.event.issue.number }} \
-            --agents "summarizer"
+            --agents "summarizer" \
+            --post
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_AUTH_KEY: ${{ secrets.ANTHROPIC_AUTH_KEY }}

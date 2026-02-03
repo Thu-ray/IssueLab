@@ -26,7 +26,12 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Update issue state
         run: |
@@ -64,9 +69,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: auto-review-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   # ========== @mention 触发：检测并分发 ==========
   detect-mentions:
@@ -137,14 +144,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
       - uses: ./.github/actions/run-agent
         with:
           agent-name: moderator
           issue-number: ${{ github.event.issue.number }}
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: moderator-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   run-reviewer_a:
     needs: detect-mentions
@@ -153,14 +167,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
       - uses: ./.github/actions/run-agent
         with:
           agent-name: reviewer_a
           issue-number: ${{ github.event.issue.number }}
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: reviewer-a-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   run-reviewer_b:
     needs: detect-mentions
@@ -169,14 +190,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
       - uses: ./.github/actions/run-agent
         with:
           agent-name: reviewer_b
           issue-number: ${{ github.event.issue.number }}
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: reviewer-b-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   run-summarizer:
     needs: detect-mentions
@@ -185,7 +213,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
       - uses: ./.github/actions/run-agent
         with:
           agent-name: summarizer
@@ -205,9 +238,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: summarizer-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   run-echo:
     needs: detect-mentions
@@ -216,14 +251,21 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
       - uses: ./.github/actions/run-agent
         with:
           agent-name: echo
           issue-number: ${{ github.event.issue.number }}
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: echo-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   # ========== /command 触发（/review, /quiet, /close, /confirm-close） ==========
   process-command:
@@ -237,7 +279,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Extract command
         id: extract
@@ -324,9 +371,11 @@ jobs:
           ACTIONS_STEP_DEBUG: "true"
           ACTIONS_RUNNER_DEBUG: "true"
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: command-logs-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7
 
   # ========== Observer 触发：bot:trigger-* 标签 ==========
   observer-triggered-agent:
@@ -337,7 +386,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Extract agent name from label
         id: extract_agent
@@ -374,6 +428,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: triggered-agent-logs-${{ steps.extract_agent.outputs.agent_name }}-${{ github.event.issue.number }}
+          path: logs/
+          retention-days: 7

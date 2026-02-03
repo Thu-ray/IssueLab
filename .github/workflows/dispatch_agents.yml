@@ -20,7 +20,12 @@ jobs:
       (github.event_name == 'issue_comment' && !startsWith(github.event.comment.body, '[Agent:'))
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Parse mentions from Issue
         if: github.event_name == 'issues'
@@ -147,9 +152,11 @@ jobs:
           LOG_FILE: ${{ github.workspace }}/logs/dispatch_${{ github.event.issue.number }}.log
           LOG_LEVEL: DEBUG
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: dispatch-logs-${{ github.event.issue.number }}-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
 
       - name: Report dispatch results
         if: always() && steps.dispatch.outcome != 'skipped'

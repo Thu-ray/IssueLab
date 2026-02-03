@@ -48,7 +48,12 @@ jobs:
     if: github.repository == 'gqy20/IssueLab'
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Run PubMed Monitor
         run: |

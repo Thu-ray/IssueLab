@@ -15,9 +15,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
         with:
-          extra-dependencies: pytest pytest-cov
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
+      - run: uv pip install pytest pytest-cov
 
       - name: Run tests with coverage
         run: |
@@ -49,7 +53,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Run ruff (linting)
         run: uvx ruff check src/ tests/ --output-format=github
@@ -90,7 +99,12 @@ jobs:
     needs: [test, lint]
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Build package
         run: |

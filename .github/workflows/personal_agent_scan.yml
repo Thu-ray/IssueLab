@@ -36,7 +36,12 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Detect personal agent
         id: detect_agent
@@ -189,9 +194,11 @@ jobs:
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: personal-scan-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
 
   # 提示job：如果在主仓库运行，给出提示
   main-repo-notice:

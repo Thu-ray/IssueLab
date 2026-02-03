@@ -128,9 +128,11 @@ jobs:
           echo "- Can trigger other workflows with @mentions"
           echo "- Full cross-repo permissions"
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: user-agent-logs-${{ inputs.issue_number }}-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
 
       - name: Comment on config error
         if: failure() && steps.check.outputs.exists == 'false'

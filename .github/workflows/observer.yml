@@ -23,7 +23,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: ./.github/actions/setup-python-env
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - run: uv sync
 
       - name: Get open issues
         id: get_issues
@@ -68,6 +73,8 @@ jobs:
           LOG_FILE: ${{ github.workspace }}/logs/observer_${{ github.run_id }}.log
           LOG_LEVEL: DEBUG
 
-      - uses: ./.github/actions/upload-logs
+      - uses: actions/upload-artifact@v4
         with:
           name: observer-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7

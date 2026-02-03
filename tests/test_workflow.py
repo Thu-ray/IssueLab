@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -80,3 +82,57 @@ def test_workflow_has_permissions():
     content = workflow_path.read_text()
 
     assert "permissions:" in content or "issues: write" in content, "Should define permissions"
+
+
+def test_orchestrator_workflow_has_timeout():
+    """orchestrator.yml 应该设置 timeout-minutes"""
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "orchestrator.yml"
+
+    if not workflow_path.exists():
+        pytest.skip("工作流文件不存在")
+
+    content = workflow_path.read_text()
+    assert "timeout-minutes:" in content, "工作流应该设置 timeout-minutes"
+
+
+def test_orchestrator_workflow_has_uv_cache():
+    """orchestrator.yml 应该启用 uv 缓存"""
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "orchestrator.yml"
+
+    if not workflow_path.exists():
+        pytest.skip("工作流文件不存在")
+
+    content = workflow_path.read_text()
+    assert "enable-cache: true" in content, "工作流应该启用 uv 缓存"
+
+
+def test_orchestrator_workflow_sets_skip_version_check():
+    """orchestrator.yml 应该设置 CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK"""
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "orchestrator.yml"
+
+    if not workflow_path.exists():
+        pytest.skip("工作流文件不存在")
+
+    content = workflow_path.read_text()
+    assert (
+        "CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK" in content
+    ), "工作流应该设置 CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK 环境变量"
+
+
+def test_skip_version_check_env_is_true():
+    """CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK 应该设置为 true"""
+    from issuelab.agents.options import create_agent_options
+
+    options = create_agent_options()
+    assert "CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK" in options.env
+    assert options.env["CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK"] == "true"
+
+
+def test_default_agent_config():
+    """默认 AgentConfig 应该符合预期"""
+    from issuelab.agents.config import AgentConfig
+
+    config = AgentConfig()
+    assert config.max_turns == 3
+    assert config.max_budget_usd == 0.50
+    assert config.timeout_seconds == 180

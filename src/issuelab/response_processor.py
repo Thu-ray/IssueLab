@@ -40,6 +40,10 @@ def extract_mentions(text: str) -> list[str]:
     pattern = r"@([a-zA-Z0-9_-]+)"
     matches = re.findall(pattern, text)
 
+    # 过滤：排除纯数字的用户名（GitHub 用户名不能是纯数字）
+    # 例如 Pass@1、Pass@32 中的 1、32 不应该被匹配
+    matches = [m for m in matches if not m.isdigit()]
+
     # 去重并返回
     return list(dict.fromkeys(matches))
 

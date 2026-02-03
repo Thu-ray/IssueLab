@@ -93,13 +93,19 @@ def truncate_text(text: str, max_length: int = MAX_COMMENT_LENGTH) -> str:
 
 
 def post_comment(
-    issue_number: int, body: str, mentions: list[str] | None = None, auto_truncate: bool = True, auto_clean: bool = True
+    issue_number: int,
+    body: str,
+    mentions: list[str] | None = None,
+    auto_truncate: bool = True,
+    auto_clean: bool = True,
+    repo: str | None = None,
 ) -> bool:
     """在 Issue 下发布评论（集中式 @ 管理）
 
     新增功能：
     1. 支持拼接 @ 区域
     2. 支持自动清理和过滤 @mentions（默认开启）
+    3. 支持跨仓库评论
 
     Args:
         issue_number: Issue 编号
@@ -109,6 +115,7 @@ def post_comment(
         auto_truncate: 是否自动截断过长内容（默认 True）
         auto_clean: 是否自动清理和过滤 @mentions（默认 True）
                    设为 False 可完全禁用 @ 管理（绕过策略）
+        repo: 仓库名称（格式：owner/repo），None 表示当前仓库
 
     Returns:
         是否成功发布
@@ -156,8 +163,13 @@ def post_comment(
         f.write(final_body)
         f.flush()
 
+        # 构建命令
+        cmd = ["gh", "issue", "comment", str(issue_number), "--body-file", f.name]
+        if repo:
+            cmd.extend(["--repo", repo])
+
         result = subprocess.run(
-            ["gh", "issue", "comment", str(issue_number), "--body-file", f.name],
+            cmd,
             capture_output=True,
             text=True,
             env=env,

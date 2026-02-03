@@ -89,32 +89,18 @@ reason: |
         assert result["should_trigger"] is False
         assert "已有" in result["reason"]
 
-    def test_parse_fallback_line_format(self):
-        """测试回退行扫描格式"""
-        response = """
-analysis: 简单分析
+    def test_parse_yaml_simple_key_value(self):
+        """测试 YAML 简单键值对格式（无代码块）"""
+        # 注意：YAML 值包含 @ 时需要用引号包裹
+        response = """analysis: 测试分析
 should_trigger: true
 agent: reviewer_a
-comment: @ReviewerA 评审
-reason: 简单原因
-"""
+comment: "@ReviewerA 评审"
+reason: 测试原因"""
         result = parse_observer_response(response, 1)
         assert result["should_trigger"] is True
         assert result["agent"] == "reviewer_a"
         assert "@ReviewerA" in result["comment"]
-
-    def test_parse_no_yaml_codeblock(self):
-        """测试纯文本格式（无代码块）"""
-        response = """Issue Analysis:
-这是一个论文讨论
-
-should_trigger: true
-agent: reviewer_b
-
-comment: @ReviewerB 请找问题"""
-        result = parse_observer_response(response, 2)
-        assert result["should_trigger"] is True
-        assert result["agent"] == "reviewer_b"
 
     def test_parse_empty_response(self):
         """测试空响应"""
@@ -122,6 +108,12 @@ comment: @ReviewerB 请找问题"""
         assert result["should_trigger"] is False
         assert result["agent"] == ""
         assert result["comment"] == ""
+
+    def test_parse_invalid_yaml(self):
+        """测试无效 YAML（应返回默认值）"""
+        result = parse_observer_response("这不是 YAML 格式", 1)
+        assert result["should_trigger"] is False
+        assert result["agent"] == ""
 
     def test_parse_default_comment(self):
         """测试默认触发评论"""

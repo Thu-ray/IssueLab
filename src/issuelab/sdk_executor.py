@@ -541,11 +541,9 @@ async def run_observer_batch(issue_data_list: list[dict]) -> list[dict]:
 def parse_observer_response(response: str, issue_number: int) -> dict:
     """解析 Observer Agent 的响应
 
-    支持 YAML 格式（使用 PyYAML）和兼容的行扫描格式。
-
     Args:
-        response: Agent 响应文本
-        issue_number: Issue 编号
+        response: Agent 响应文本（YAML 格式）
+        issue_number: Issue 编号（未使用，保留 API 兼容）
 
     Returns:
         解析后的决策结果 {
@@ -556,8 +554,6 @@ def parse_observer_response(response: str, issue_number: int) -> dict:
             "analysis": str,
         }
     """
-    import yaml
-
     result = {
         "should_trigger": False,
         "agent": "",
@@ -566,27 +562,21 @@ def parse_observer_response(response: str, issue_number: int) -> dict:
         "analysis": "",
     }
 
-    # 方法1: 尝试 YAML 解析
     yaml_data = _try_parse_yaml(response)
-    if yaml_data is not None:
-        result["should_trigger"] = yaml_data.get("should_trigger", False)
-        result["agent"] = yaml_data.get("agent", "") or yaml_data.get("trigger_agent", "")
-        result["comment"] = yaml_data.get("comment", "") or yaml_data.get("trigger_comment", "")
-        result["reason"] = yaml_data.get("reason", "") or yaml_data.get("skip_reason", "")
-        result["analysis"] = yaml_data.get("analysis", "")
-
-        # 如果是 skip 模式，提前返回
-        if not result["should_trigger"] and result["reason"]:
-            return result
-
-        # 如果没有解析到触发评论，使用默认格式
-        if result["should_trigger"] and result["agent"] and not result["comment"]:
-            result["comment"] = _get_default_trigger_comment(result["agent"])
-
+    if yaml_data is None:
         return result
 
-    # 方法2: 回退到行扫描（兼容旧格式）
-    return _parse_observer_response_lines(response, result, issue_number)
+    result["should_trigger"] = yaml_data.get("should_trigger", False)
+    result["agent"] = yaml_data.get("agent", "") or yaml_data.get("trigger_agent", "")
+    result["comment"] = yaml_data.get("comment", "") or yaml_data.get("trigger_comment", "")
+    result["reason"] = yaml_data.get("reason", "") or yaml_data.get("skip_reason", "")
+    result["analysis"] = yaml_data.get("analysis", "")
+
+    # 如果没有解析到触发评论，使用默认格式
+    if result["should_trigger"] and result["agent"] and not result["comment"]:
+        result["comment"] = _get_default_trigger_comment(result["agent"])
+
+    return result
 
 
 def _try_parse_yaml(response: str) -> dict | None:
@@ -644,50 +634,6 @@ def _try_parse_yaml(response: str) -> dict | None:
             pass
 
     return None
-
-
-def _parse_observer_response_lines(response: str, result: dict, issue_number: int) -> dict:
-    """回退解析：简单的行扫描（兼容旧格式）"""
-    lines = response.split("\n")
-
-    # 查找 action/should_trigger
-    for line in lines:
-        line_lower = line.lower().strip()
-        if "action: trigger" in line_lower or "should_trigger: true" in line_lower:
-            result["should_trigger"] = True
-        elif "action: skip" in line_lower or "should_trigger: false" in line_lower:
-            result["should_trigger"] = False
-            return result
-
-    # 查找 agent
-    for line in lines:
-        if line.startswith("agent:") or line.startswith("trigger_agent:"):
-            result["agent"] = line.split(":", 1)[1].strip().lower()
-            break
-
-    # 查找 comment（处理简单的单行格式）
-    for line in lines:
-        if line.lower().startswith("comment:") or line.lower().startswith("trigger_comment:"):
-            result["comment"] = line.split(":", 1)[1].strip()
-            break
-
-    # 查找 reason
-    for line in lines:
-        if line.lower().startswith("reason:") or line.lower().startswith("skip_reason:"):
-            result["reason"] = line.split(":", 1)[1].strip()
-            break
-
-    # 查找 analysis
-    for line in lines:
-        if line.lower().startswith("analysis:"):
-            result["analysis"] = line.split(":", 1)[1].strip()
-            break
-
-    # 如果没有解析到触发评论，使用默认格式
-    if result["should_trigger"] and result["agent"] and not result["comment"]:
-        result["comment"] = _get_default_trigger_comment(result["agent"])
-
-    return result
 
 
 def _get_default_trigger_comment(agent: str) -> str:

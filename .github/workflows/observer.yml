@@ -24,8 +24,6 @@ jobs:
 
     steps:
       - uses: ./.github/actions/setup-python-env
-        with:
-          python-version: '3.13'
 
       - name: Get open issues
         id: get_issues

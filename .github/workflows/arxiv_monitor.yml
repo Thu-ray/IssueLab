@@ -32,6 +32,11 @@ env:
   GH_TOKEN: ${{ secrets.PAT_TOKEN }}
   # 启用 DEBUG 日志以显示 Agent 完整执行过程
   LOG_LEVEL: DEBUG
+  # Anthropic API 配置
+  ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+  ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+  ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+  CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK: "true"
 
 jobs:
   monitor:

@@ -56,7 +56,7 @@ should_trigger: true  # 或 false
 agent: moderator  # 要触发的 Agent 名称
 
 comment: |
-  @Moderator 请审核这篇论文
+  @moderator 请审核这篇论文
 
 reason: |
   Issue #1 包含论文模板和 arXiv 链接，需要审核决定后续评审流程
@@ -66,7 +66,7 @@ reason: |
 
 ```yaml
 analysis: |
-  Issue #123 是一个技术问题，已有 @ReviewerA 进行分析
+  Issue #123 是一个技术问题，已有 @reviewer_a 进行分析
 
 should_trigger: false
 

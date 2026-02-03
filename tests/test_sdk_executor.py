@@ -185,7 +185,7 @@ should_trigger: true
 agent: moderator
 
 comment: |
-  @Moderator 请分诊这篇论文，它包含 arXiv 链接和模板
+  @moderator 请分诊这篇论文，它包含 arXiv 链接和模板
 
 reason: |
   Issue #123 包含论文模板和 arXiv 链接，需要分诊决定后续评审流程
@@ -193,7 +193,7 @@ reason: |
         result = parse_observer_response(response, 123)
         assert result["should_trigger"] is True
         assert result["agent"] == "moderator"
-        assert "@Moderator" in result["comment"]
+        assert "@moderator" in result["comment"]
         assert "分诊" in result["reason"]
         assert "arXiv" in result["analysis"]
 
@@ -201,7 +201,7 @@ reason: |
         """测试 YAML 块标量格式 - 跳过场景"""
         response = """```yaml
 analysis: |
-  Issue #456 是一个技术问题，已有 @ReviewerA 进行分析
+  Issue #456 是一个技术问题，已有 @reviewer_a 进行分析
 
 should_trigger: false
 
@@ -218,12 +218,12 @@ reason: |
         response = """analysis: 测试分析
 should_trigger: true
 agent: reviewer_a
-comment: "@ReviewerA 评审"
+comment: "@reviewer_a 评审"
 reason: 测试原因"""
         result = parse_observer_response(response, 1)
         assert result["should_trigger"] is True
         assert result["agent"] == "reviewer_a"
-        assert "@ReviewerA" in result["comment"]
+        assert "@reviewer_a" in result["comment"]
 
     def test_parse_empty_response(self):
         """测试空响应"""
@@ -250,7 +250,7 @@ agent: summarizer
         result = parse_observer_response(response, 1)
         assert result["should_trigger"] is True
         assert result["agent"] == "summarizer"
-        assert "@Summarizer" in result["comment"]
+        assert "@summarizer" in result["comment"]
 
 
 class TestStreamingOutput:

@@ -1,6 +1,6 @@
 """测试 @mention 解析器"""
 
-from issuelab.parser import AGENT_ALIASES, has_mentions, parse_mentions
+from issuelab.parser import AGENT_NAMES, has_mentions, parse_mentions
 
 
 def test_parse_single_mention():
@@ -11,15 +11,18 @@ def test_parse_single_mention():
 
 def test_parse_multiple_mentions():
     """测试解析多个 @mention"""
-    result = parse_mentions("@Moderator 分诊，@ReviewerA 评审")
+    result = parse_mentions("@moderator 分诊，@reviewer_a 评审")
     assert result == ["moderator", "reviewer_a"]
 
 
-def test_parse_alias_mappings():
-    """测试别名映射"""
-    assert AGENT_ALIASES["mod"] == "moderator"
-    assert AGENT_ALIASES["reva"] == "reviewer_a"
-    assert AGENT_ALIASES["revb"] == "reviewer_b"
+def test_parse_name_mappings():
+    """测试真名映射仅包含真名"""
+    assert AGENT_NAMES["moderator"] == "moderator"
+    assert AGENT_NAMES["reviewer_a"] == "reviewer_a"
+    assert AGENT_NAMES["reviewer_b"] == "reviewer_b"
+    assert "mod" not in AGENT_NAMES
+    assert "reva" not in AGENT_NAMES
+    assert "revb" not in AGENT_NAMES
 
 
 def test_parse_uppercase_mention():

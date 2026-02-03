@@ -9,7 +9,7 @@
 ## 核心流程图
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph User["用户"]
         A["提交 Issue / 评论<br/>@Mention / Command / Label"]
     end

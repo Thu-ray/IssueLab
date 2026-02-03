@@ -79,8 +79,7 @@ jobs:
   detect-mentions:
     if: |
       github.event_name == 'issue_comment' &&
-      contains(github.event.comment.body, '@') &&
-      !startsWith(github.event.comment.body, '[Agent:')
+      contains(github.event.comment.body, '@')
     runs-on: ubuntu-latest
     timeout-minutes: 5
 

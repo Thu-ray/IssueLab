@@ -101,7 +101,9 @@ jobs:
           ANTHROPIC_AUTH_KEY: ${{ secrets.ANTHROPIC_AUTH_KEY }}
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 优先使用用户PAT，fallback到默认token
+          # 配置PAT后，回复会显示用户本人而非bot
+          GH_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           LOG_FILE: ${{ github.workspace }}/logs/user_agent_${{ inputs.issue_number }}.log
           LOG_LEVEL: DEBUG
           ENABLE_ARXIV_MCP: "false"
@@ -133,7 +135,7 @@ jobs:
         if: failure() && steps.check.outputs.exists == 'false'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const [owner, repo] = '${{ inputs.source_repo }}'.split('/');
             await github.rest.issues.createComment({
@@ -147,7 +149,7 @@ jobs:
         if: failure() && steps.check.outputs.exists == 'true'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const [owner, repo] = '${{ inputs.source_repo }}'.split('/');
             await github.rest.issues.createComment({

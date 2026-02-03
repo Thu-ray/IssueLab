@@ -76,6 +76,9 @@ jobs:
               for user_dir in agents_dir.iterdir():
                   if not user_dir.is_dir():
                       continue
+                  # 跳过模板目录
+                  if user_dir.name.startswith("_"):
+                      continue
                   agent_yml = user_dir / "agent.yml"
                   if not agent_yml.exists():
                       continue

@@ -46,7 +46,7 @@ def truncate_text(text: str, max_length: int = 1500) -> str:
     """截断文本"""
     if len(text) <= max_length:
         return text
-    return text[:max_length].rsplit(".", 1)[0] +..."
+    return text[:max_length].rsplit(".", 1)[0] + "..."
 
 
 def fetch_papers(categories: list[str], last_scan: str, max_papers: int = 10) -> list[dict[str, Any]]:

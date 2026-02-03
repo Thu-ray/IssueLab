@@ -126,8 +126,10 @@ def discover_agents() -> dict:
             with open(agent_file, "r", encoding="utf-8") as f:
                 agent_config = yaml.safe_load(f)
 
-            # 读取 prompt 内容（纯文本，无 frontmatter）
-            prompt_content = prompt_file.read_text().strip()
+            # 读取 prompt 内容（移除可能的 frontmatter）
+            prompt_content = prompt_file.read_text()
+            # 移除 frontmatter（兼容旧格式）
+            prompt_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
 
             agents[agent_name] = {
                 "description": agent_config.get("description", ""),

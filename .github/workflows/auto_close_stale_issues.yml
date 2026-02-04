@@ -37,32 +37,35 @@ jobs:
           echo "🔍 检查超过 $MAX_COMMENTS 回复的 issue..."
           echo "📊 仓库: $REPO"
           echo "🔬 模式: $([ "$DRY_RUN" = "true" ] && echo "干运行" || echo "实际执行")"
-          echo "🔢 MAX_COMMENTS 变量: [$MAX_COMMENTS] (类型: $(echo "$MAX_COMMENTS" | jq -R 'type'))"
           echo ""
 
-          # 调试：先查看所有 issue 的评论数
-          echo "📋 当前所有 open issue 的评论数:"
-          gh issue list --repo "$REPO" --state open --limit 10 --json number,comments | jq '.[] | "\(.number): \(.comments | length) 条评论"'
+          # 先获取所有 open issue 编号，然后逐个检查准确评论数
+          # gh issue list 的 comments 字段有 100 条限制，需用 issue view 获取完整数量
+          echo "📋 检查所有 open issue 的评论数..."
+
+          TO_CLOSE=""
+          for issue_num in $(gh issue list --repo "$REPO" --state open --json number --jq '.[].number'); do
+            COMMENTS=$(gh issue view $issue_num --repo "$REPO" --json comments --jq '.comments | length')
+            TITLE=$(gh issue view $issue_num --repo "$REPO" --json title --jq '.title')
+
+            if [ "$COMMENTS" -gt "$MAX_COMMENTS" ]; then
+              echo "  #$issue_num: $TITLE"
+              echo "     回复数: $COMMENTS (超过 $MAX_COMMENTS)"
+              TO_CLOSE="$TO_CLOSE $issue_num"
+            fi
+          done
           echo ""
 
-          # 获取超过 N 回复的 open issue
-          ISSUES=$(gh issue list \
-            --repo "$REPO" \
-            --state open \
-            --limit 300 \
-            --json number,title,comments \
-            --jq ".[] | select(.comments | length > $MAX_COMMENTS) | .number")
-
-          if [ -z "$ISSUES" ]; then
-            echo "✅ 没有需要关闭的 issue"
+          if [ -z "$TO_CLOSE" ]; then
+            echo "✅ 没有超过 $MAX_COMMENTS 回复的 issue"
             exit 0
           fi
 
-          COUNT=$(echo "$ISSUES" | wc -l)
+          COUNT=$(echo "$TO_CLOSE" | wc -w)
           echo "⚠️  发现 $COUNT 个需要关闭的 issue:"
           echo ""
 
-          for issue_num in $ISSUES; do
+          for issue_num in $TO_CLOSE; do
             TITLE=$(gh issue view $issue_num --repo "$REPO" --json title --jq '.title')
             COMMENTS=$(gh issue view $issue_num --repo "$REPO" --json comments --jq '.comments | length')
 

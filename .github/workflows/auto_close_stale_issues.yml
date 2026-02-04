@@ -43,8 +43,8 @@ jobs:
           ISSUES=$(gh issue list \
             --state open \
             --limit 300 \
-            --json number,title,commentsCount \
-            --jq ".[] | select(.commentsCount > $MAX_COMMENTS) | .number")
+            --json number,title,comments \
+            --jq ".[] | select(.comments > $MAX_COMMENTS) | .number")
 
           if [ -z "$ISSUES" ]; then
             echo "✅ 没有需要关闭的 issue"

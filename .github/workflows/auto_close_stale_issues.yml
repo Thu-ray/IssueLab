@@ -45,7 +45,7 @@ jobs:
             --state open \
             --limit 300 \
             --json number,title,comments \
-            --jq ".[] | select(.comments > $MAX_COMMENTS) | .number")
+            --jq --argjson max "$MAX_COMMENTS" '.[] | select(.comments > $max) | .number')
 
           if [ -z "$ISSUES" ]; then
             echo "✅ 没有需要关闭的 issue"
@@ -58,7 +58,7 @@ jobs:
 
           for issue_num in $ISSUES; do
             TITLE=$(gh issue view $issue_num --repo "$REPO" --json title --jq '.title')
-            COMMENTS=$(gh issue view $issue_num --repo "$REPO" --json comments --jq '.comments')
+            COMMENTS=$(gh issue view $issue_num --repo "$REPO" --json comments --jq '.comments | length')
 
             echo "  #$issue_num: $TITLE"
             echo "     回复数: $COMMENTS"

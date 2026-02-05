@@ -77,7 +77,7 @@ jobs:
           ACTIONS_STEP_DEBUG: "true"
           ACTIONS_RUNNER_DEBUG: "true"
           MCP_LOG_DETAIL: "1"
-          MCP_LOG_TOOLS: "1"
+          PROMPT_LOG: "1"
 
       - uses: actions/upload-artifact@v4
         with:

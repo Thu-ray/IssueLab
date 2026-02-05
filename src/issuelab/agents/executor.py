@@ -4,6 +4,7 @@
 """
 
 import anyio
+import os
 from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
@@ -305,6 +306,11 @@ async def run_agents_parallel(
 - 专注于 Issue 的讨论话题和内容
 - 不要去分析项目代码或架构（除非 Issue 明确要求）
 """
+        if os.environ.get("PROMPT_LOG") == "1":
+            max_len = 2000
+            preview = final_prompt[:max_len]
+            suffix = "..." if len(final_prompt) > max_len else ""
+            logger.debug(f"[{agent_name}] [Prompt] length={len(final_prompt)}\\n{preview}{suffix}")
 
         result = await run_single_agent(final_prompt, agent_name)
         results[agent_name] = result

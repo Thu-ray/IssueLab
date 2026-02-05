@@ -5,10 +5,12 @@
 
 import json
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from pathlib import Path
 from typing import Any
 
+import yaml
 from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions
 
 from issuelab.agents.config import AgentConfig
@@ -150,6 +152,67 @@ def _skills_signature(cwd: Path) -> str:
     return json.dumps({"project": project_skills, "user": user_skills}, ensure_ascii=True)
 
 
+def _parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
+    """解析 markdown frontmatter"""
+    match = re.match(r"^---\n(.*?)\n---\n", content, re.DOTALL)
+    if not match:
+        return {}, content
+
+    meta_str = match.group(1)
+    try:
+        metadata = yaml.safe_load(meta_str) or {}
+    except Exception:
+        metadata = {}
+
+    body = re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL).strip()
+    return metadata, body
+
+
+def _load_subagents_from_dir(path: Path, default_tools: list[str]) -> dict[str, AgentDefinition]:
+    """从 .claude/agents 加载 subagents"""
+    agents_dir = path / ".claude" / "agents"
+    if not agents_dir.exists():
+        return {}
+
+    subagents: dict[str, AgentDefinition] = {}
+    for md in agents_dir.glob("*.md"):
+        try:
+            content = md.read_text(encoding="utf-8")
+        except OSError:
+            continue
+
+        meta, body = _parse_frontmatter(content)
+        name = (meta.get("agent") or meta.get("name") or md.stem).strip()
+        if not name:
+            continue
+
+        description = (meta.get("description") or "").strip()
+        tools = meta.get("tools") or default_tools
+        if isinstance(tools, str):
+            tools = [t.strip() for t in tools.split(",") if t.strip()]
+        if not isinstance(tools, list):
+            tools = default_tools
+
+        # Subagents must not call subagents
+        tools = [t for t in tools if t != "Task"]
+
+        subagents[name] = AgentDefinition(
+            description=description,
+            prompt=body if body else f"You are {name}.",
+            tools=tools,
+            model=Config.get_anthropic_model(),
+        )
+
+    return subagents
+
+
+def _subagents_signature(subagents: dict[str, AgentDefinition]) -> str:
+    """生成 subagents 签名（用于缓存键）"""
+    if not subagents:
+        return ""
+    return json.dumps(sorted(subagents.keys()), ensure_ascii=True)
+
+
 def _run_async_in_thread(coro, timeout_ms: int) -> Any:
     """在独立线程中运行 async 任务，避免与当前事件循环冲突"""
     timeout_sec = max(timeout_ms, 0) / 1000.0
@@ -225,6 +288,7 @@ def _create_agent_options_impl(
     agent_name: str | None,
     mcp_servers: dict[str, Any],
     cwd: Path,
+    subagents_sig: str,
 ) -> ClaudeAgentOptions:
     """创建 Agent 选项的实际实现（无缓存）"""
     env = Config.get_anthropic_env()
@@ -245,7 +309,7 @@ def _create_agent_options_impl(
     agents = discover_agents()
 
     base_tools = ["Read", "Write", "Bash", "Skill"]
-    all_tools = base_tools
+    main_tools = base_tools + ["Task"]
     model = Config.get_anthropic_model()
 
     agent_definitions = {}
@@ -255,11 +319,20 @@ def _create_agent_options_impl(
         agent_definitions[name] = AgentDefinition(
             description=config["description"],
             prompt=config["prompt"],
-            tools=all_tools,
+            tools=base_tools,
             model=model,
         )
 
-    allowed_tools = base_tools[:]
+    # per-agent subagents from .claude/agents
+    subagent_tools = base_tools
+    project_subagents = _load_subagents_from_dir(cwd, subagent_tools)
+    user_subagents = _load_subagents_from_dir(Path(os.path.expanduser("~")), subagent_tools)
+
+    # programmatic subagents override file-based on name collision
+    for name, definition in {**user_subagents, **project_subagents}.items():
+        agent_definitions[name] = definition
+
+    allowed_tools = main_tools[:]
     if mcp_servers:
         allowed_tools.extend([f"mcp__{name}__*" for name in mcp_servers])
     if os.environ.get("MCP_LOG_DETAIL") == "1":
@@ -338,12 +411,29 @@ def create_agent_options(
                 logger.info("MCP tools for '%s': %s", name, ", ".join(sorted(tools)))
             else:
                 logger.info("MCP tools for '%s': (none or unavailable)", name)
+    # per-agent subagents signature for cache
+    subagent_tools = ["Read", "Write", "Bash", "Skill"]
+    project_subagents = _load_subagents_from_dir(cwd, subagent_tools)
+    user_subagents = _load_subagents_from_dir(Path(os.path.expanduser("~")), subagent_tools)
+    subagents_sig = _subagents_signature({**user_subagents, **project_subagents})
+
+    if project_subagents or user_subagents:
+        logger.info(
+            "Subagents loaded for agent '%s': project=%s user=%s",
+            agent_name or "default",
+            ", ".join(sorted(project_subagents.keys())) if project_subagents else "(none)",
+            ", ".join(sorted(user_subagents.keys())) if user_subagents else "(none)",
+        )
+    else:
+        logger.info("No subagents configured for agent '%s'", agent_name or "default")
+
     cache_key = (
         effective_max_turns,
         effective_max_budget,
         agent_name or "",
         _mcp_cache_key(mcp_servers),
         _skills_signature(cwd),
+        subagents_sig,
     )
 
     # 检查缓存
@@ -358,6 +448,7 @@ def create_agent_options(
         agent_name=agent_name,
         mcp_servers=mcp_servers,
         cwd=cwd,
+        subagents_sig=subagents_sig,
     )
 
     # 存入缓存

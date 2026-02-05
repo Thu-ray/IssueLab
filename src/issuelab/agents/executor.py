@@ -98,6 +98,8 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
                         print(f"\n[{tool_name}] id={tool_use_id}", end="", flush=True)
                         if tool_name == "Skill" or tool_name.startswith("Skill"):
                             logger.info(f"[{agent_name}] [Skill] {tool_name}(id={tool_use_id})")
+                        if tool_name == "Task":
+                            logger.info(f"[{agent_name}] [Subagent] Task(id={tool_use_id})")
                         # 详细日志输出
                         if isinstance(tool_input, dict):
                             import json

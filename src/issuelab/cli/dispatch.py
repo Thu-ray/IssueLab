@@ -38,6 +38,8 @@ def match_triggers(mentions: list[str], registry: dict[str, dict[str, Any]]) -> 
         if mention in registry:
             config = registry[mention]
             triggers = config.get("triggers", [])
+            if not triggers:
+                triggers = [f"@{mention}"]
 
             # 检查是否在触发列表中
             if f"@{mention}" in triggers and mention not in matched_users:
@@ -51,6 +53,8 @@ def match_triggers(mentions: list[str], registry: dict[str, dict[str, Any]]) -> 
                 continue
 
             triggers = config.get("triggers", [])
+            if not triggers:
+                triggers = [f"@{username}"]
             if f"@{mention}" in triggers:
                 matched.append(config)
                 matched_users.add(username)

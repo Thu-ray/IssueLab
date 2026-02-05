@@ -224,6 +224,7 @@ enabled: false
         registry = {
             "alice": {"owner": "alice", "repository": "alice/IssueLab", "triggers": ["@alice"]},
             "bob": {"owner": "bob", "repository": "bob/IssueLab", "triggers": ["@bob", "@bob-cv"]},
+            "carol": {"owner": "carol", "repository": "carol/IssueLab"},
         }
 
         # Test direct match
@@ -243,6 +244,11 @@ enabled: false
         matched = match_triggers(["bob-cv"], registry)
         assert len(matched) == 1
         assert matched[0]["owner"] == "bob"
+
+        # Test default trigger when triggers missing
+        matched = match_triggers(["carol"], registry)
+        assert len(matched) == 1
+        assert matched[0]["owner"] == "carol"
 
 
 class TestDispatchCLI:

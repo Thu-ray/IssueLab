@@ -15,6 +15,7 @@ from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions
 
 from issuelab.agents.config import AgentConfig
 from issuelab.agents.discovery import AGENTS_DIR, discover_agents
+from issuelab.agents.registry import get_agent_config
 from issuelab.config import Config
 from issuelab.logging_config import get_logger
 
@@ -32,6 +33,34 @@ def clear_agent_options_cache() -> None:
     global _cached_agent_options
     _cached_agent_options = {}
     logger.info("Agent 选项缓存已清除")
+
+
+def _get_agent_run_overrides(agent_name: str | None) -> dict[str, float | int]:
+    """读取 agent.yml 中的运行覆盖参数"""
+    if not agent_name:
+        return {}
+
+    config = get_agent_config(agent_name, agents_dir=AGENTS_DIR, include_disabled=False)
+    if not config:
+        return {}
+
+    overrides: dict[str, float | int] = {}
+    if "max_turns" in config:
+        try:
+            overrides["max_turns"] = int(config["max_turns"])
+        except (TypeError, ValueError):
+            pass
+    if "max_budget_usd" in config:
+        try:
+            overrides["max_budget_usd"] = float(config["max_budget_usd"])
+        except (TypeError, ValueError):
+            pass
+    if "timeout_seconds" in config:
+        try:
+            overrides["timeout_seconds"] = int(config["timeout_seconds"])
+        except (TypeError, ValueError):
+            pass
+    return overrides
 
 
 def _read_mcp_servers_from_file(path: Path) -> dict[str, Any]:
@@ -406,9 +435,18 @@ def create_agent_options(
         此函数使用缓存来避免重复创建相同的配置。
         如果需要强制刷新配置，请先调用 clear_agent_options_cache()。
     """
-    # 使用默认值
-    effective_max_turns = max_turns if max_turns is not None else AgentConfig().max_turns
-    effective_max_budget = max_budget_usd if max_budget_usd is not None else AgentConfig().max_budget_usd
+    overrides = _get_agent_run_overrides(agent_name)
+    # 使用默认值 + per-agent 覆盖
+    effective_max_turns = (
+        max_turns
+        if max_turns is not None
+        else int(overrides.get("max_turns", AgentConfig().max_turns))
+    )
+    effective_max_budget = (
+        max_budget_usd
+        if max_budget_usd is not None
+        else float(overrides.get("max_budget_usd", AgentConfig().max_budget_usd))
+    )
 
     # 缓存键：使用参数元组
     mcp_servers = load_mcp_servers_for_agent(agent_name)
@@ -463,8 +501,8 @@ def create_agent_options(
                 logger.info("MCP tools for '%s': (none or unavailable)", name)
     # 创建新配置
     options = _create_agent_options_impl(
-        max_turns,
-        max_budget_usd,
+        effective_max_turns,
+        effective_max_budget,
         agent_name=agent_name,
         mcp_servers=mcp_servers,
         cwd=cwd,

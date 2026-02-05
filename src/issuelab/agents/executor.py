@@ -16,6 +16,7 @@ from claude_agent_sdk import (
 )
 
 from issuelab.agents.options import create_agent_options, format_mcp_servers_for_prompt
+from issuelab.agents.config import AgentConfig
 from issuelab.logging_config import get_logger
 from issuelab.retry import retry_async
 
@@ -159,8 +160,30 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
         result = "\n".join(response_text)
         return result
 
+    def _get_timeout_seconds() -> int | None:
+        config = None
+        try:
+            from issuelab.agents.registry import get_agent_config
+
+            config = get_agent_config(agent_name)
+        except Exception:
+            config = None
+
+        if config and "timeout_seconds" in config:
+            try:
+                value = int(config["timeout_seconds"])
+                return value if value > 0 else None
+            except (TypeError, ValueError):
+                return None
+        return AgentConfig().timeout_seconds
+
     try:
-        response = await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0)
+        timeout_seconds = _get_timeout_seconds()
+        if timeout_seconds:
+            with anyio.fail_after(timeout_seconds):
+                response = await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0)
+        else:
+            response = await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0)
         execution_info["response"] = response
 
         # 最终日志

@@ -306,6 +306,25 @@ class TestCaching:
 
         _ = options_mod.create_agent_options(agent_name="moderator")
 
+    def test_create_agent_options_uses_agent_overrides(self, monkeypatch):
+        """agent.yml 的运行配置应覆盖默认值"""
+        from issuelab.agents import options as options_mod
+
+        options_mod.clear_agent_options_cache()
+
+        monkeypatch.setattr(options_mod, "load_mcp_servers_for_agent", lambda *a, **k: {})
+        monkeypatch.setattr(options_mod, "_skills_signature", lambda *a, **k: "skills-sig")
+        monkeypatch.setattr(options_mod, "_subagents_signature_from_dir", lambda *a, **k: [])
+        monkeypatch.setattr(
+            options_mod,
+            "get_agent_config",
+            lambda *a, **k: {"max_turns": 7, "max_budget_usd": 1.5, "timeout_seconds": 42},
+        )
+
+        options = options_mod.create_agent_options(agent_name="alice")
+        assert options.max_turns == 7
+        assert options.max_budget_usd == 1.5
+
 
 class TestParseObserverResponse:
     """测试 Observer 响应解析"""

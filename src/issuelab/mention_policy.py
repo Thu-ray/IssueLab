@@ -8,6 +8,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from issuelab.agents.registry import BUILTIN_AGENTS, load_registry
+
 logger = logging.getLogger(__name__)
 
 # 统一的 @mention 匹配规则（支持字母、数字、下划线、连字符）
@@ -110,8 +112,17 @@ def filter_mentions(mentions: list[str], policy: dict[str, Any] | None = None) -
     allowed = []
     filtered = []
 
+    registry = load_registry(Path("agents"))
+    allowed_agents = {name.lower() for name in BUILTIN_AGENTS} | {name.lower() for name in registry}
+
     for username in mentions:
         username_lower = username.lower()
+
+        # 0. 必须是已注册或内置的 agent
+        if username_lower not in allowed_agents:
+            logger.debug(f"[FILTER] 未注册 agent: {username}")
+            filtered.append(username)
+            continue
 
         # 1. 过滤系统账号
         if username_lower in [acc.lower() for acc in system_accounts]:

@@ -72,15 +72,17 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - alice
+  - moderator
 confidence: "high"
 ```"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
-        assert results == {"alice": True}
-        assert allowed == ["alice"]
+        assert results == {"moderator": True}
+        assert allowed == ["moderator"]
         assert filtered == []
-        mock_trigger.assert_called_once_with(agent_name="alice", issue_number=1, issue_title="Title", issue_body="Body")
+        mock_trigger.assert_called_once_with(
+            agent_name="moderator", issue_number=1, issue_title="Title", issue_body="Body"
+        )
 
     @patch("issuelab.observer_trigger.auto_trigger_agent")
     def test_trigger_multiple_mentioned_agents(self, mock_trigger):
@@ -94,14 +96,14 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - bob
-  - charlie
+  - reviewer_a
+  - reviewer_b
 confidence: "high"
 ```"""
         results, allowed, filtered = trigger_mentioned_agents(response, 2, "Title", "Body")
 
-        assert results == {"bob": True, "charlie": True}
-        assert allowed == ["bob", "charlie"]
+        assert results == {"reviewer_a": True, "reviewer_b": True}
+        assert allowed == ["reviewer_a", "reviewer_b"]
         assert filtered == []
         assert mock_trigger.call_count == 2
 
@@ -139,13 +141,13 @@ findings: []
 recommendations: []
 mentions:
   - github-actions
-  - alice
+  - reviewer_a
 confidence: "high"
 ```"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
 
-        assert results == {"alice": True}
-        assert allowed == ["alice"]
+        assert results == {"reviewer_a": True}
+        assert allowed == ["reviewer_a"]
         assert filtered == ["github-actions"]
         mock_trigger.assert_called_once()
 
@@ -174,7 +176,7 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - alice
+  - reviewer_a
 confidence: "high"
 ```"""
         results, allowed, filtered = trigger_mentioned_agents(response, 1, "Title", "Body")
@@ -201,7 +203,7 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - alice
+  - reviewer_a
 confidence: "high"
 ```""",
             issue_number=1,
@@ -211,8 +213,8 @@ confidence: "high"
 
         assert result["agent_name"] == "moderator"
         assert "## Summary" in result["response"]
-        assert result["mentions"] == ["alice"]
-        assert result["dispatch_results"] == {"alice": True}
+        assert result["mentions"] == ["reviewer_a"]
+        assert result["dispatch_results"] == {"reviewer_a": True}
 
     @patch("issuelab.response_processor.trigger_mentioned_agents")
     def test_process_dict_response(self, mock_trigger):
@@ -229,7 +231,7 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - bob
+  - reviewer_b
 confidence: "high"
 ```""",
                 "cost_usd": 0.01,
@@ -239,7 +241,7 @@ confidence: "high"
 
         assert result["agent_name"] == "echo"
         assert "## Summary" in result["response"]
-        assert result["mentions"] == ["bob"]
+        assert result["mentions"] == ["reviewer_b"]
 
     @patch("issuelab.response_processor.trigger_mentioned_agents")
     def test_auto_dispatch_disabled(self, mock_trigger):
@@ -253,14 +255,14 @@ summary: "Test"
 findings: []
 recommendations: []
 mentions:
-  - alice
+  - reviewer_a
 confidence: "high"
 ```""",
             issue_number=1,
             auto_dispatch=False,
         )
 
-        assert result["mentions"] == ["alice"]
+        assert result["mentions"] == ["reviewer_a"]
         assert result["dispatch_results"] == {}
         mock_trigger.assert_not_called()
 

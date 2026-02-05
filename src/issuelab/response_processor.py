@@ -111,6 +111,53 @@ def _normalize_agent_output(response_text: str, agent_name: str) -> tuple[str, l
     actions_marker = sections["actions"]
     yaml_marker = sections["structured"]
 
+    # Render YAML-only responses into markdown for user-facing agents.
+    if summary_marker not in response_text:
+        yaml_text = _extract_yaml_block(response_text)
+        if yaml_text and agent_name not in {"observer", "arxiv_observer", "pubmed_observer"}:
+            try:
+                parsed = yaml.safe_load(yaml_text) or {}
+            except Exception:
+                parsed = None
+            if isinstance(parsed, dict):
+                summary_line = str(parsed.get("summary", "")).strip()
+                findings_list = parsed.get("findings", []) if isinstance(parsed.get("findings"), list) else []
+                recs_list = parsed.get("recommendations", []) if isinstance(parsed.get("recommendations"), list) else []
+
+                findings_count = int(limits.get("findings_count", 3))
+                actions_max = int(limits.get("actions_max_count", 2))
+                summary_line = _truncate_text(
+                    clean_mentions_in_text(summary_line), int(limits.get("summary_max_chars", 20))
+                )
+                findings = [
+                    _truncate_text(clean_mentions_in_text(str(item)), int(limits.get("findings_max_chars", 25)))
+                    for item in findings_list[:findings_count]
+                ]
+                actions = [
+                    _truncate_text(str(item), int(limits.get("actions_max_chars", 30)))
+                    for item in recs_list[:actions_max]
+                ]
+
+                normalized = [
+                    f"[Agent: {agent_name}]",
+                    "",
+                    summary_marker,
+                    summary_line or "(missing)",
+                    "",
+                    findings_marker,
+                    *(f"- {item}" for item in findings),
+                    "",
+                    actions_marker,
+                    *(f"- [ ] {item}" for item in actions),
+                    "",
+                    yaml_marker,
+                    "```yaml",
+                    yaml_text.strip(),
+                    "```",
+                ]
+
+                return "\n".join(normalized).rstrip() + "\n", warnings
+
     if not force_normalize and summary_marker not in response_text:
         return response_text, warnings
 

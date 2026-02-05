@@ -16,6 +16,7 @@ from typing import Any
 
 import jwt
 import requests
+
 from issuelab.agents.registry import load_registry
 
 
@@ -496,13 +497,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # 分发事件
     success_count = 0
-    failed_agents = []
-    local_agents = []  # 需要本地执行的 Agent
+    failed_agents: list[dict[str, str]] = []
+    local_agents: list[str] = []  # 需要本地执行的 Agent
 
     for config in matched_configs:
         repository = config.get("repository")
         branch = config.get("branch", "main")
-        username = config.get("owner") or config.get("username")
+        username = config.get("owner") or config.get("username") or ""
         dispatch_mode = config.get("dispatch_mode", "repository_dispatch")
         workflow_file = config.get("workflow_file", "user_agent.yml")
 
@@ -514,7 +515,8 @@ def main(argv: list[str] | None = None) -> int:
         # 检测主仓库 Agent → 标记为本地执行（不走 API dispatch）
         if repository == args.source_repo:
             print(f"[LOCAL] {username} will run locally (same repository)", file=sys.stderr)
-            local_agents.append(username)
+            if username:
+                local_agents.append(username)
             success_count += 1
             continue
 

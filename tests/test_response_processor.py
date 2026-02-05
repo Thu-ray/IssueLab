@@ -81,8 +81,7 @@ class TestMentionExports:
 
     def test_response_processor_exports_mention_policy_helpers(self):
         """response_processor 应直接复用 mention_policy 的实现"""
-        from issuelab import mention_policy
-        from issuelab import response_processor
+        from issuelab import mention_policy, response_processor
 
         assert response_processor.extract_mentions is mention_policy.extract_mentions
         assert response_processor.clean_mentions_in_text is mention_policy.clean_mentions_in_text

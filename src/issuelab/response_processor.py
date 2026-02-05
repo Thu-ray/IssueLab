@@ -127,7 +127,7 @@ def process_agent_response(
     # 清理主体内容（将所有 @username 替换为 "用户 username"）
     clean_response = clean_mentions_in_text(response_text)
 
-    result = {
+    result: dict[str, Any] = {
         "agent_name": agent_name,
         "response": response_text,
         "clean_response": clean_response,

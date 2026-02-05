@@ -4,7 +4,6 @@ import json
 import os
 import tempfile
 from pathlib import Path
-
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,8 +14,8 @@ from issuelab.agents.options import (
     _cached_agent_options,
     clear_agent_options_cache,
     create_agent_options,
-    load_mcp_servers_for_agent,
     format_mcp_servers_for_prompt,
+    load_mcp_servers_for_agent,
 )
 from issuelab.agents.parsers import parse_observer_response
 
@@ -193,13 +192,15 @@ class TestMcpConfigLoading:
     def test_mcp_log_tools_triggers_listing(self):
         """MCP_LOG_TOOLS=1 时应触发工具列表逻辑"""
         clear_agent_options_cache()
-        with patch.dict(os.environ, {"MCP_LOG_TOOLS": "1"}):
-            with patch("issuelab.agents.options.load_mcp_servers_for_agent") as mock_load:
-                mock_load.return_value = {"docs": {"command": "echo", "args": ["hi"]}}
-                with patch("issuelab.agents.options._list_tools_for_mcp_server") as mock_list:
-                    mock_list.return_value = []
-                    _ = create_agent_options(agent_name="moderator")
-                    mock_list.assert_called()
+        with (
+            patch.dict(os.environ, {"MCP_LOG_TOOLS": "1"}),
+            patch("issuelab.agents.options.load_mcp_servers_for_agent") as mock_load,
+            patch("issuelab.agents.options._list_tools_for_mcp_server") as mock_list,
+        ):
+            mock_load.return_value = {"docs": {"command": "echo", "args": ["hi"]}}
+            mock_list.return_value = []
+            _ = create_agent_options(agent_name="moderator")
+            mock_list.assert_called()
 
 
 class TestSubagents:
@@ -226,10 +227,12 @@ class TestSubagents:
         )
 
         # patch AGENTS_DIR to point to tmp agents root
-        with patch("issuelab.agents.options.AGENTS_DIR", tmp_path / "agents"):
-            with patch("issuelab.agents.options.discover_agents") as mock_discover:
-                mock_discover.return_value = {}
-                options = create_agent_options(agent_name="gqy20")
+        with (
+            patch("issuelab.agents.options.AGENTS_DIR", tmp_path / "agents"),
+            patch("issuelab.agents.options.discover_agents") as mock_discover,
+        ):
+            mock_discover.return_value = {}
+            options = create_agent_options(agent_name="gqy20")
 
         assert "literature-triage" in options.agents
         subagent = options.agents["literature-triage"]

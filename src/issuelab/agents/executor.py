@@ -3,8 +3,10 @@
 处理 Agent 的执行、消息流和日志记录。
 """
 
-import anyio
 import os
+from typing import Any, cast
+
+import anyio
 from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
@@ -15,8 +17,8 @@ from claude_agent_sdk import (
     query,
 )
 
-from issuelab.agents.options import create_agent_options, format_mcp_servers_for_prompt
 from issuelab.agents.config import AgentConfig
+from issuelab.agents.options import create_agent_options, format_mcp_servers_for_prompt
 from issuelab.logging_config import get_logger
 from issuelab.retry import retry_async
 
@@ -43,7 +45,7 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
     logger.debug(f"[{agent_name}] Prompt 长度: {len(prompt)} 字符")
 
     # 执行信息收集
-    execution_info = {
+    execution_info: dict[str, Any] = {
         "response": "",
         "cost_usd": 0.0,
         "num_turns": 0,
@@ -181,9 +183,15 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
         timeout_seconds = _get_timeout_seconds()
         if timeout_seconds:
             with anyio.fail_after(timeout_seconds):
-                response = await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0)
+                response = cast(
+                    str,
+                    await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0),
+                )
         else:
-            response = await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0)
+            response = cast(
+                str,
+                await retry_async(_query_agent, max_retries=3, initial_delay=2.0, backoff_factor=2.0),
+            )
         execution_info["response"] = response
 
         # 最终日志

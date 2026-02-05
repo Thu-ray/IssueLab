@@ -8,11 +8,12 @@ Observer 自动触发功能
 统一使用dispatch机制，无需预创建labels，简化架构。
 """
 
-from issuelab.agents.registry import BUILTIN_AGENTS, is_registered_agent
 import logging
 import os
 import subprocess
 import sys
+
+from issuelab.agents.registry import BUILTIN_AGENTS, is_registered_agent
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +101,6 @@ def trigger_user_agent(username: str, issue_number: int, issue_title: str, issue
     if not is_registered or not config:
         logger.error(f"[ERROR] Agent {username} not registered or disabled")
         return False
-
-    target_repo = config.get("repository", "")
 
     # 统一走 dispatch 到用户仓库
     return dispatch_user_agent(username, issue_number, issue_title, issue_body, source_repo)

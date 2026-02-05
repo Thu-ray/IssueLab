@@ -1,7 +1,7 @@
 """测试 __main__ 模块功能"""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from issuelab.tools.github import MAX_COMMENT_LENGTH, truncate_text
 

@@ -148,7 +148,6 @@ class TestDiscoverAgentsCache:
         )
         # 确保 mtime 变化（避免文件系统时间粒度导致缓存未失效）
         import os
-        import time
 
         new_mtime = prompt_path.stat().st_mtime + 2
         os.utime(prompt_path, (new_mtime, new_mtime))

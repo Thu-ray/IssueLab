@@ -14,6 +14,7 @@ from typing import Any
 
 from issuelab.agents.executor import run_single_agent_text
 from issuelab.tools.github import get_issue_info
+
 logger = logging.getLogger(__name__)
 
 # LLM智能扫描开关

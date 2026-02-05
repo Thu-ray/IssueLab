@@ -6,7 +6,9 @@
 import json
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -46,20 +48,14 @@ def _get_agent_run_overrides(agent_name: str | None) -> dict[str, float | int]:
 
     overrides: dict[str, float | int] = {}
     if "max_turns" in config:
-        try:
+        with suppress(TypeError, ValueError):
             overrides["max_turns"] = int(config["max_turns"])
-        except (TypeError, ValueError):
-            pass
     if "max_budget_usd" in config:
-        try:
+        with suppress(TypeError, ValueError):
             overrides["max_budget_usd"] = float(config["max_budget_usd"])
-        except (TypeError, ValueError):
-            pass
     if "timeout_seconds" in config:
-        try:
+        with suppress(TypeError, ValueError):
             overrides["timeout_seconds"] = int(config["timeout_seconds"])
-        except (TypeError, ValueError):
-            pass
     return overrides
 
 
@@ -251,7 +247,7 @@ def _load_subagents_from_dir(path: Path, default_tools: list[str]) -> dict[str, 
             description=description,
             prompt=body if body else f"You are {name}.",
             tools=tools,
-            model=Config.get_anthropic_model(),
+            model="inherit",
         )
 
     return subagents
@@ -382,8 +378,6 @@ def _create_agent_options_impl(
 
     base_tools = ["Read", "Write", "Bash", "Skill"]
     main_tools = base_tools + ["Task"]
-    model = Config.get_anthropic_model()
-
     agent_definitions = {}
     for name, config in agents.items():
         if name == "observer":
@@ -392,7 +386,7 @@ def _create_agent_options_impl(
             description=config["description"],
             prompt=config["prompt"],
             tools=base_tools,
-            model=model,
+            model="inherit",
         )
 
     if enable_subagents:

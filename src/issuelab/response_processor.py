@@ -31,6 +31,7 @@ __all__ = [
     "filter_mentions",
     "trigger_mentioned_agents",
     "process_agent_response",
+    "normalize_comment_body",
     "should_auto_close",
     "close_issue",
 ]
@@ -266,6 +267,26 @@ def _normalize_agent_output(response_text: str, agent_name: str) -> tuple[str, l
     ]
 
     return "\n".join(normalized).rstrip() + "\n", warnings
+
+
+def _extract_agent_name(response_text: str) -> str:
+    lines = response_text.strip().splitlines()
+    first_line = lines[0] if lines else ""
+    match = re.search(r"^\[Agent:\s*(.+?)\]\s*$", first_line)
+    if match:
+        return match.group(1).strip()
+    inline = re.search(r"\[Agent:\s*(.+?)\]", response_text)
+    if inline:
+        return inline.group(1).strip()
+    return "unknown"
+
+
+def normalize_comment_body(body: str) -> str:
+    if not body:
+        return body
+    agent_name = _extract_agent_name(body)
+    normalized, _warnings = _normalize_agent_output(body, agent_name)
+    return normalized
 
 
 def trigger_mentioned_agents(

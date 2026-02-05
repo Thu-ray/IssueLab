@@ -37,5 +37,5 @@
 
 ## Security & Configuration Tips
 - Secrets should be provided via GitHub Actions (e.g., `ANTHROPIC_AUTH_TOKEN`, `PAT_TOKEN`).
-- Use GitHub App credentials where possible for cross-repo dispatch; see `docs/GITHUB_APP_SETUP.md`.
+- Use GitHub App credentials where possible for cross-repo dispatch; see `docs/DEPLOYMENT.md`.
 - MCP configuration lives in `.mcp.json` (global) and `agents/<name>/.mcp.json` (per-agent overrides).

@@ -14,7 +14,7 @@ from claude_agent_sdk import (
     query,
 )
 
-from issuelab.agents.options import create_agent_options
+from issuelab.agents.options import create_agent_options, format_mcp_servers_for_prompt
 from issuelab.logging_config import get_logger
 from issuelab.retry import retry_async
 
@@ -51,7 +51,7 @@ async def run_single_agent(prompt: str, agent_name: str) -> dict:
     }
 
     async def _query_agent():
-        options = create_agent_options()
+        options = create_agent_options(agent_name=agent_name)
         response_text = []
         turn_count = 0
         tool_calls = []
@@ -266,6 +266,10 @@ async def run_agents_parallel(
         if not agent_prompt:
             logger.warning(f"[{agent_name}] 未找到 prompt 文件，使用默认配置")
             agent_prompt = f"你是 {agent_name} 代理。"
+
+        if "{mcp_servers}" in agent_prompt:
+            mcp_text = format_mcp_servers_for_prompt(agent_name)
+            agent_prompt = agent_prompt.replace("{mcp_servers}", mcp_text)
 
         # 2. 构建最终 prompt：角色定义 + 当前任务
         final_prompt = f"""{agent_prompt}

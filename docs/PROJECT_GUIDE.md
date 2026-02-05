@@ -169,6 +169,37 @@ git push origin main
 
 完成后，当主仓库有人 @your_username 时，会自动触发你 fork 仓库的 agent。
 
+### 2.7 MCP 配置（可选）
+
+IssueLab 支持在**项目根目录**与**单个 agent 目录**中配置 MCP：
+
+- 全局配置：`./.mcp.json`
+- Agent 配置：`./agents/<your_github_id>/.mcp.json`
+
+**合并规则：**
+- 先加载根目录 `.mcp.json`
+- 再加载 `agents/<name>/.mcp.json` 覆盖同名 server（可追加新 server）
+
+**模板文件：**
+- 参考 `agents/_template/.mcp.json`
+
+**示例：**
+```
+agents/your-id/.mcp.json
+```
+```json
+{
+  "mcpServers": {
+    "article-mcp": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["article-mcp==0.1.8", "server"],
+      "env": {}
+    }
+  }
+}
+```
+
 ---
 
 ## 3. 使用指南

@@ -75,6 +75,8 @@ def _validate_agent_yml(path: Path, folder: str, errors: list[str]) -> None:
             if not repo_owner or not repo_name:
                 _error(errors, f"repository '{repo}' must be in the form owner/name in {path}")
             else:
+                if owner and repo_owner != owner:
+                    _error(errors, f"repository owner '{repo_owner}' must match owner '{owner}' in {path}")
                 _check_repo_exists(repo, errors, path)
 
     if not content.endswith("\n"):

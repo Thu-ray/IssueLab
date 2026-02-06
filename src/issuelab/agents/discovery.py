@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 # 统一 registry 读取
-from issuelab.agents.registry import load_registry
+from issuelab.agents.registry import BUILTIN_AGENTS, load_registry
 
 # 提示词目录
 PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
@@ -149,6 +149,33 @@ def discover_agents() -> dict[str, dict[str, Any]]:
 
             agents[agent_name] = {
                 "description": metadata.get("description", ""),
+                "prompt": clean_content,
+                "trigger_conditions": trigger_conditions,
+            }
+
+    # 扫描 agents 目录下的系统内置 agent 覆盖（目录化配置）
+    # 约定：agents/<builtin>/prompt.md 可覆盖 prompts/<builtin>.md
+    if AGENTS_DIR.exists():
+        for builtin_name in BUILTIN_AGENTS:
+            prompt_file = AGENTS_DIR / builtin_name / "prompt.md"
+            if not prompt_file.exists():
+                continue
+            prompt_content = prompt_file.read_text()
+            metadata = parse_agent_metadata(prompt_content)
+            clean_content = re.sub(r"^---\n.*?\n---\n", "", prompt_content, flags=re.DOTALL).strip()
+
+            description = agents.get(builtin_name, {}).get("description", "")
+            trigger_conditions: list[str] = agents.get(builtin_name, {}).get("trigger_conditions", [])
+            if metadata:
+                meta_desc = metadata.get("description", "")
+                if isinstance(meta_desc, str) and meta_desc:
+                    description = meta_desc
+                meta_trigger = metadata.get("trigger_conditions", [])
+                if isinstance(meta_trigger, list):
+                    trigger_conditions = meta_trigger
+
+            agents[builtin_name] = {
+                "description": description,
                 "prompt": clean_content,
                 "trigger_conditions": trigger_conditions,
             }

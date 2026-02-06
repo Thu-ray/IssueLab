@@ -155,3 +155,32 @@ class TestDiscoverAgentsCache:
         agents_v2 = discovery_mod.discover_agents()
         assert agents_v2 is not agents_v1
         assert "v2" in agents_v2["moderator"]["prompt"]
+
+
+def test_builtin_prompt_can_be_overridden_by_agents_dir(tmp_path, monkeypatch):
+    """内置 agent 应支持 agents/<name>/prompt.md 覆盖 prompts/<name>.md"""
+    from issuelab.agents import discovery as discovery_mod
+
+    prompts_dir = tmp_path / "prompts"
+    agents_dir = tmp_path / "agents"
+    prompts_dir.mkdir()
+    (agents_dir / "moderator").mkdir(parents=True)
+
+    (prompts_dir / "moderator.md").write_text(
+        "---\nagent: moderator\ndescription: from-prompts\n---\n# Moderator\nfrom prompts",
+        encoding="utf-8",
+    )
+    (agents_dir / "moderator" / "prompt.md").write_text(
+        "---\nagent: moderator\ndescription: from-agents\n---\n# Moderator\nfrom agents",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(discovery_mod, "PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr(discovery_mod, "AGENTS_DIR", agents_dir)
+    discovery_mod._CACHED_AGENTS = None
+    discovery_mod._CACHED_SIGNATURE = None
+
+    agents = discovery_mod.discover_agents()
+    assert "moderator" in agents
+    assert "from agents" in agents["moderator"]["prompt"]
+    assert agents["moderator"]["description"] == "from-agents"

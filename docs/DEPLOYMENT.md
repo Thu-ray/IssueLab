@@ -136,6 +136,16 @@ gh api /app/installations --jq '.[] | {account: .account.login, id: .id}'
 | `ANTHROPIC_BASE_URL` | ⚪ | API Base URL | 默认：https://api.minimaxi.com/anthropic |
 | `ANTHROPIC_MODEL` | ⚪ | 模型名称 | 默认：MiniMax-M2.1 |
 
+### 3.1.1 主仓库 Variables（推荐）
+
+在主仓库 `Settings → Secrets and variables → Actions → Variables` 添加：
+
+| Variable 名称 | 必需 | 说明 |
+|--------------|------|------|
+| `DAILY_REPORT_DISCUSSION_NUMBER` | ✅ | 日报专用 Discussion 编号（例如 `71`） |
+
+> 日报工作流 `Daily Issue Health Report` 会优先读取该变量并自动发帖到专用日报 Discussion，便于按天回溯。
+
 > 💡 **提示**：也可以使用智谱 GLM Coding Plan，在智谱开放平台（https://open.bigmodel.cn/）申请后，将 API Token 填入 `ANTHROPIC_AUTH_TOKEN`，`ANTHROPIC_BASE_URL` 设为智普 API 地址。
 
 **添加 Private Key 的正确方式：**

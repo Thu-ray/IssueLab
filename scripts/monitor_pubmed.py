@@ -224,6 +224,14 @@ def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().strip(".")
 
 
+def _normalize_doi(doi: str) -> str:
+    if not doi:
+        return ""
+    value = doi.strip().lower()
+    value = re.sub(r"^https?://(dx\.)?doi\.org/", "", value)
+    return value.strip()
+
+
 def truncate_text(text: str, max_length: int = 1500) -> str:
     """截断文本"""
     if not text:
@@ -359,20 +367,39 @@ def filter_existing_papers(papers: list[dict], repo_name: str, token: str) -> li
     g = Github(token)
     repo = g.get_repo(repo_name)
 
-    # 获取近 30 天内已存在的 Issue 标题
+    # 获取近 30 天内已存在的 Issue 信息
     thirty_days_ago = datetime.now() - timedelta(days=30)
-    existing_titles = set()
+    existing_titles: set[str] = set()
+    existing_pmids: set[str] = set()
+    existing_dois: set[str] = set()
+    pmid_pattern = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)/", re.IGNORECASE)
+    doi_pattern = re.compile(r"doi\.org/([^\s)]+)", re.IGNORECASE)
 
     for issue in repo.get_issues(state="all", since=thirty_days_ago):
         # 只检查我们自己创建的文献 Issue
         if issue.title.startswith("[文献]"):
             existing_titles.add(issue.title.lower())
+            body = issue.body or ""
+            for pmid in pmid_pattern.findall(body):
+                existing_pmids.add(pmid.strip())
+            for doi in doi_pattern.findall(body):
+                normalized = _normalize_doi(doi)
+                if normalized:
+                    existing_dois.add(normalized)
 
     # 过滤
     filtered = []
     for paper in papers:
         title_prefix = f"[文献] {paper['title'][:40]}".lower()
+        pmid = str(paper.get("pmid", "")).strip()
+        doi = _normalize_doi(str(paper.get("doi", "")))
 
+        if pmid and pmid in existing_pmids:
+            logger.debug(f"跳过已存在 PMID: {pmid}")
+            continue
+        if doi and doi in existing_dois:
+            logger.debug(f"跳过已存在 DOI: {doi}")
+            continue
         if any(title_prefix in existing for existing in existing_titles):
             logger.debug(f"跳过已存在: {title_prefix[:30]}...")
             continue
@@ -383,6 +410,61 @@ def filter_existing_papers(papers: list[dict], repo_name: str, token: str) -> li
     return filtered
 
 
+def _fallback_extract_from_response(response_text: str, papers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """从非结构化响应中提取 PMID/DOI/文献序号并回填文献。"""
+    if not response_text or not papers:
+        return []
+
+    pmid_to_paper = {str(p.get("pmid", "")).strip(): p for p in papers if str(p.get("pmid", "")).strip()}
+    doi_to_paper = {_normalize_doi(str(p.get("doi", ""))): p for p in papers if _normalize_doi(str(p.get("doi", "")))}
+
+    selected: list[dict[str, Any]] = []
+    seen_pmids: set[str] = set()
+
+    # 1) PMID 优先
+    for pmid in re.findall(r"\bPMID[:\s#]*([0-9]{4,10})\b", response_text, flags=re.IGNORECASE):
+        paper = pmid_to_paper.get(pmid)
+        if not paper or pmid in seen_pmids:
+            continue
+        picked = paper.copy()
+        picked["reason"] = "从模型自由文本中提取到 PMID 推荐"
+        picked["summary"] = ""
+        selected.append(picked)
+        seen_pmids.add(pmid)
+
+    # 2) DOI
+    for raw_doi in re.findall(r"(?:doi\.org/|DOI[:\s]*)(10\.\d{4,9}/[^\s),;]+)", response_text, flags=re.IGNORECASE):
+        doi = _normalize_doi(raw_doi)
+        paper = doi_to_paper.get(doi)
+        pmid = str(paper.get("pmid", "")).strip() if paper else ""
+        if not paper or (pmid and pmid in seen_pmids):
+            continue
+        picked = paper.copy()
+        picked["reason"] = "从模型自由文本中提取到 DOI 推荐"
+        picked["summary"] = ""
+        selected.append(picked)
+        if pmid:
+            seen_pmids.add(pmid)
+
+    # 3) 文献序号（文献 2 / paper 2）
+    for idx_text in re.findall(r"(?:文献|paper)\s*#?\s*(\d+)", response_text, flags=re.IGNORECASE):
+        idx = int(idx_text)
+        if idx < 0 or idx >= len(papers):
+            continue
+        paper = papers[idx]
+        pmid = str(paper.get("pmid", "")).strip()
+        if pmid and pmid in seen_pmids:
+            continue
+        picked = paper.copy()
+        picked["reason"] = f"从模型自由文本中提取到文献序号 {idx}"
+        picked["summary"] = ""
+        selected.append(picked)
+        if pmid:
+            seen_pmids.add(pmid)
+
+    return selected
+
+
 def analyze_with_observer(papers: list[dict], query: str, token: str) -> list[dict]:
     """使用 Observer agent 分析文献，返回推荐的文献"""
 
@@ -390,9 +472,9 @@ def analyze_with_observer(papers: list[dict], query: str, token: str) -> list[di
     logger.info(f"[Observer Agent] 开始智能分析 {len(papers)} 篇文献")
     logger.info(f"{'=' * 60}")
 
-    # 如果文献不足 2 篇，无法推荐
-    if len(papers) < 2:
-        logger.warning("文献数量不足 2 篇，无法进行智能推荐")
+    # 放宽门槛：有 1 篇即可产出推荐，避免“成功但无结果”
+    if len(papers) < 1:
+        logger.warning("文献数量不足 1 篇，无法进行智能推荐")
         return []
 
     # 调用 PubMed Observer 智能体
@@ -404,7 +486,21 @@ def analyze_with_observer(papers: list[dict], query: str, token: str) -> list[di
         from issuelab.agents.observer import run_pubmed_observer_for_papers
 
         logger.debug("[Observer] 调用 run_pubmed_observer_for_papers...")
-        recommended = asyncio.run(run_pubmed_observer_for_papers(papers, query))
+        recommended, raw_result = asyncio.run(run_pubmed_observer_for_papers(papers, query, return_result=True))
+        response_text = str(raw_result.get("response", ""))
+
+        # YAML-first: 若结构化解析为空，回退提取 PMID/DOI/序号
+        if not recommended:
+            fallback_recommended = _fallback_extract_from_response(response_text, papers)
+            if fallback_recommended:
+                logger.info(f"[Observer] 结构化为空，回退解析得到 {len(fallback_recommended)} 篇文献")
+                recommended = fallback_recommended
+
+        # 仍为空则启发式兜底，保证有产出
+        if not recommended and papers:
+            logger.info("[Observer] 回退解析为空，启用启发式兜底")
+            recommended = heuristic_selection(papers, query)
+
         logger.info(f"[Observer] 分析完成，推荐 {len(recommended)} 篇文献")
         logger.debug(f"[Observer] 推荐结果: {recommended}")
         return recommended
@@ -468,9 +564,9 @@ def heuristic_selection(papers: list[dict], query: str) -> list[dict]:
             }
         )
 
-    # 按分数排序，取 Top 2
+    # 按分数排序，取 Top 2（若只有 1 篇，也保留 1 篇）
     recommended.sort(key=lambda x: x["score"], reverse=True)
-    top2 = recommended[:2]
+    top2 = recommended[: min(2, len(recommended))]
 
     logger.info(f"启发式筛选完成，推荐 {len(top2)} 篇文献")
 
@@ -604,8 +700,8 @@ def main(argv: list[str] | None = None) -> int:
         if len(recommended) == 0:
             if len(new_papers) == 0:
                 logger.info("所有文献已存在，无需推荐")
-            elif len(new_papers) < 2:
-                logger.info("新文献数量不足 2 篇，无法智能推荐")
+            elif len(new_papers) < 1:
+                logger.info("新文献数量不足 1 篇，无法智能推荐")
             else:
                 logger.info("智能分析未返回有效结果")
             return 0

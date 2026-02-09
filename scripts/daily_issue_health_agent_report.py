@@ -23,10 +23,9 @@ def _extract_yaml_block(text: str) -> str:
 
 def _parse_structured_output(text: str) -> dict[str, Any] | None:
     yaml_text = _extract_yaml_block(text)
-    if not yaml_text:
-        return None
     try:
-        parsed = yaml.safe_load(yaml_text)
+        # 兼容裸 YAML（无 ```yaml fence）
+        parsed = yaml.safe_load(yaml_text) if yaml_text else yaml.safe_load(text)
     except Exception:
         return None
     if not isinstance(parsed, dict):
@@ -171,10 +170,9 @@ def _render_markdown(raw_response: str, structured: dict[str, Any] | None) -> st
             lines.append("- （未提供）")
         lines.append("")
 
-    # 默认不回显完整原始 YAML，避免与结构化展示重复、拉长日报内容。
+    # 不回显完整原始 YAML，避免与结构化展示重复、拉长日报内容。
     if not structured:
-        lines.append("### 诊断输出（原文）")
-        lines.append(raw_response.strip() or "（空）")
+        lines.append("> 智能体输出未能结构化解析，已省略原文展示以保持日报简洁。")
         lines.append("")
     return "\n".join(lines)
 

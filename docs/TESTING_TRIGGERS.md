@@ -319,7 +319,7 @@ def test_discover_agents():
 
     agents = discover_agents()
 
-    # 验证内置 agent 存在
+    # 验证 system agent 存在
     assert "moderator" in agents
     assert "reviewer_a" in agents
     assert "reviewer_b" in agents

@@ -287,10 +287,10 @@ jobs:
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run python -m issuelab agent \
-            --agent-name $(cat agents/*/agent.yml | grep "^name:" | cut -d' ' -f2) \
-            --issue-number ${{ github.event.inputs.issue_number }} \
-            --main-repo ${{ github.event.inputs.main_repo }}
+          uv run python -m issuelab execute \
+            --issue ${{ github.event.inputs.issue_number }} \
+            --agents "${GITHUB_REPOSITORY%/*}" \
+            --post
 ```
 
 ### 4.4 测试 Dispatch

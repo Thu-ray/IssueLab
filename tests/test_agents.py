@@ -120,7 +120,7 @@ class TestDiscoverAgentsCache:
         assert "v2" in agents_v2["moderator"]["prompt"]
 
 
-def test_builtin_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
+def test_system_prompt_loaded_from_agents_dir(tmp_path, monkeypatch):
     """系统 agent 应从 agents/<name>/prompt.md 读取。"""
     from issuelab.agents import discovery as discovery_mod
 

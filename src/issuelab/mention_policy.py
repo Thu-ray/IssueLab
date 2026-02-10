@@ -112,7 +112,7 @@ def filter_mentions(mentions: list[str], policy: dict[str, Any] | None = None) -
     for username in mentions:
         username_lower = username.lower()
 
-        # 0. 必须是已注册或内置的 agent
+        # 0. 必须是已注册 agent
         if username_lower not in allowed_agents:
             logger.debug(f"[FILTER] 未注册 agent: {username}")
             filtered.append(username)

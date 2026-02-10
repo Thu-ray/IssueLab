@@ -35,7 +35,7 @@ _TOOL_AND_CITATION_RULES = (
     "Output must include traceable source links (URLs) for factual statements so readers can verify them."
 )
 
-# 内置系统智能体默认运行上限（当未在 agents/<name>/agent.yml 显式配置时生效）
+# 系统智能体默认运行上限（当未在 agents/<name>/agent.yml 显式配置时生效）
 _SYSTEM_DEFAULT_OVERRIDES: dict[str, float | int] = {
     "max_turns": 100,
     "timeout_seconds": 600,

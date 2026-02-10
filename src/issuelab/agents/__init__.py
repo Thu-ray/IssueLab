@@ -9,7 +9,7 @@ from issuelab.agents.discovery import (
     discover_agents,
     load_prompt,
 )
-from issuelab.agents.registry import AGENT_NAMES, BUILTIN_AGENTS, normalize_agent_name
+from issuelab.agents.registry import normalize_agent_name
 
 
 def get_available_agents() -> list[str]:
@@ -27,6 +27,4 @@ __all__ = [
     "load_prompt",
     "normalize_agent_name",
     "get_available_agents",
-    "AGENT_NAMES",
-    "BUILTIN_AGENTS",
 ]

@@ -1,8 +1,7 @@
 """Agent registry and rules (single source of truth).
 
-This module centralizes:
-1) Built-in agent canonical names
-2) User agent registry loading from agents/<user>/agent.yml
+This module centralizes agent registry loading from `agents/<name>/agent.yml`
+and derives behavior from configuration instead of hardcoded name lists.
 """
 
 from __future__ import annotations
@@ -15,38 +14,21 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Built-in agent names (canonical only)
-AGENT_NAMES: dict[str, str] = {
-    "moderator": "moderator",
-    "reviewer_a": "reviewer_a",
-    "reviewer_b": "reviewer_b",
-    "summarizer": "summarizer",
-    "observer": "observer",
-    "arxiv_observer": "arxiv_observer",
-    "pubmed_observer": "pubmed_observer",
-    "video_manim": "video_manim",
-}
-
-BUILTIN_AGENTS: set[str] = {
-    "moderator",
-    "reviewer_a",
-    "reviewer_b",
-    "summarizer",
-    "observer",
-    "arxiv_observer",
-    "pubmed_observer",
-    "video_manim",
-}
-
 AGENT_TYPE_SYSTEM = "system"
 AGENT_TYPE_USER = "user"
 
 
 def normalize_agent_name(name: str) -> str:
-    """Normalize agent name using canonical mapping."""
+    """Normalize agent name by registry key (case-insensitive)."""
     if not name:
         return name
-    return AGENT_NAMES.get(name.lower(), name)
+    config = get_agent_config(name, include_disabled=True)
+    if not config:
+        return name
+    canonical = config.get("owner") or config.get("username")
+    if isinstance(canonical, str) and canonical:
+        return canonical
+    return name
 
 
 def _normalize_agent_type(value: Any) -> str | None:
@@ -133,17 +115,14 @@ def is_system_agent(
 ) -> tuple[bool, dict[str, Any] | None]:
     """Determine whether an agent is a system agent.
 
-    Primary source of truth: agent.yml field `agent_type: system|user`.
-    Compatibility fallback: BUILTIN_AGENTS set when agent_type is absent.
+    Source of truth: agent.yml field `agent_type: system|user`.
+    If `agent_type` is absent or invalid, it is treated as non-system.
     """
     config = get_agent_config(agent_name, agents_dir=agents_dir, include_disabled=include_disabled)
-    if config:
-        parsed = _normalize_agent_type(config.get("agent_type"))
-        if parsed is not None:
-            return parsed == AGENT_TYPE_SYSTEM, config
-
-    # Compatibility fallback for legacy configs without `agent_type`.
-    return agent_name.lower() in BUILTIN_AGENTS, config
+    if not config:
+        return False, None
+    parsed = _normalize_agent_type(config.get("agent_type"))
+    return parsed == AGENT_TYPE_SYSTEM, config
 
 
 def is_registered_agent(

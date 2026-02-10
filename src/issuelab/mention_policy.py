@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from issuelab.agents.registry import BUILTIN_AGENTS, load_registry
+from issuelab.agents.registry import load_registry
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ def filter_mentions(mentions: list[str], policy: dict[str, Any] | None = None) -
     filtered = []
 
     registry = load_registry(Path("agents"))
-    allowed_agents = {name.lower() for name in BUILTIN_AGENTS} | {name.lower() for name in registry}
+    allowed_agents = {name.lower() for name in registry}
 
     for username in mentions:
         username_lower = username.lower()

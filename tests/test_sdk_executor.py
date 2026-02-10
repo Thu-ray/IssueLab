@@ -699,7 +699,7 @@ class TestStreamingOutput:
 
     @pytest.mark.asyncio
     async def test_builtin_agent_timeout_defaults_to_600(self):
-        """内置系统 agent 在无显式配置时应使用 600s 超时"""
+        """system agent 在无显式配置时应使用 600s 超时"""
         from claude_agent_sdk import ResultMessage
 
         from issuelab.agents.executor import run_single_agent
@@ -722,6 +722,7 @@ class TestStreamingOutput:
             patch("issuelab.agents.executor.query", mock_query),
             patch("issuelab.agents.executor.anyio.fail_after", fake_fail_after),
             patch("issuelab.agents.registry.get_agent_config", return_value=None),
+            patch("issuelab.agents.executor.is_system_agent", return_value=(True, None)),
         ):
             await run_single_agent("test prompt", "moderator")
 

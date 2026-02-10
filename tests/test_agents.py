@@ -1,7 +1,6 @@
 """测试代理模块"""
 
 from issuelab.agents import (
-    AGENT_NAMES,
     discover_agents,
     get_available_agents,
     load_prompt,
@@ -9,17 +8,15 @@ from issuelab.agents import (
 )
 
 
-def test_agent_name_mapping():
-    """代理名称映射表仅包含真名"""
-    assert AGENT_NAMES["moderator"] == "moderator"
-    assert AGENT_NAMES["reviewer_a"] == "reviewer_a"
-    assert AGENT_NAMES["reviewer_b"] == "reviewer_b"
-    assert AGENT_NAMES["summarizer"] == "summarizer"
-    assert AGENT_NAMES["video_manim"] == "video_manim"
-    assert "mod" not in AGENT_NAMES
-    assert "reviewer" not in AGENT_NAMES
-    assert "revb" not in AGENT_NAMES
-    assert "summary" not in AGENT_NAMES
+def test_normalize_agent_name():
+    """normalize_agent_name 应该返回标准化名称"""
+    assert normalize_agent_name("MODERATOR") == "moderator"
+    assert normalize_agent_name("reviewer_a") == "reviewer_a"
+    assert normalize_agent_name("reviewer_b") == "reviewer_b"
+    assert normalize_agent_name("summarizer") == "summarizer"
+    # 测试不存在的名称
+    assert normalize_agent_name("unknown") == "unknown"
+    assert normalize_agent_name("mod") == "mod"
 
 
 def test_discover_agents():
@@ -65,17 +62,6 @@ def test_load_prompt_unknown_agent():
     """load_prompt 对未知代理返回空字符串"""
     result = load_prompt("unknown_agent_xyz_123")
     assert result == ""
-
-
-def test_normalize_agent_name():
-    """normalize_agent_name 应该返回标准化名称"""
-    assert normalize_agent_name("MODERATOR") == "moderator"
-    assert normalize_agent_name("reviewer_a") == "reviewer_a"
-    assert normalize_agent_name("reviewer_b") == "reviewer_b"
-    assert normalize_agent_name("summarizer") == "summarizer"
-    # 测试不存在的名称
-    assert normalize_agent_name("unknown") == "unknown"
-    assert normalize_agent_name("mod") == "mod"
 
 
 def test_get_available_agents():

@@ -16,15 +16,6 @@ def test_parser_agent_integration():
         assert agent in discovered, f"Agent {agent} not found in discovered agents"
 
 
-def test_name_mapping_consistency():
-    """测试名称映射在不同模块中的一致性"""
-    from issuelab.agents import AGENT_NAMES as AGENTS_NAMES
-    from issuelab.parser import AGENT_NAMES as PARSER_NAMES
-
-    # 两个模块应该引用相同的对象
-    assert AGENTS_NAMES is PARSER_NAMES
-
-
 def test_end_to_end_agent_loading():
     """端到端测试：从名称到加载 prompt"""
     # 使用真名

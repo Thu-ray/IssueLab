@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -14,15 +13,11 @@ import yaml
 
 from issuelab.agents.discovery import load_prompt
 from issuelab.agents.executor import run_single_agent
-
-
-def _extract_yaml_block(text: str) -> str:
-    match = re.search(r"```yaml(.*?)```", text, re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else ""
+from issuelab.utils.yaml_text import extract_yaml_block
 
 
 def _parse_structured_output(text: str) -> dict[str, Any] | None:
-    yaml_text = _extract_yaml_block(text)
+    yaml_text = extract_yaml_block(text)
     try:
         # 兼容裸 YAML（无 ```yaml fence）
         parsed = yaml.safe_load(yaml_text) if yaml_text else yaml.safe_load(text)

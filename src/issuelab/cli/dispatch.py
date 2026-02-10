@@ -8,9 +8,7 @@ import argparse
 import json
 import os
 import sys
-import time
 from datetime import UTC, datetime, timedelta
-from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +16,7 @@ import jwt
 import requests
 
 from issuelab.agents.registry import load_registry
+from issuelab.retry import retry_sync
 
 
 def match_triggers(mentions: list[str], registry: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -43,46 +42,8 @@ def match_triggers(mentions: list[str], registry: dict[str, dict[str, Any]]) -> 
     return matched
 
 
-def retry_on_failure(max_attempts: int = 3, delay: float = 2, backoff: float = 2):
-    """
-    重试装饰器，用于网络请求失败时自动重试
-
-    Args:
-        max_attempts: 最大重试次数
-        delay: 初始延迟（秒）
-        backoff: 延迟倍增系数
-    """
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            last_exception = None
-
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                    last_exception = e
-                    if attempt == max_attempts - 1:
-                        # 最后一次尝试也失败了
-                        raise
-
-                    print(
-                        f"[WARNING] Attempt {attempt + 1}/{max_attempts} failed: {e}",
-                        file=sys.stderr,
-                    )
-                    print(f"   Retrying in {current_delay:.1f}s...", file=sys.stderr)
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-
-            # 如果所有尝试都失败了
-            if last_exception:
-                raise last_exception
-
-        return wrapper
-
-    return decorator
+def _should_retry_dispatch_exception(exc: Exception) -> bool:
+    return isinstance(exc, requests.exceptions.Timeout | requests.exceptions.ConnectionError)
 
 
 def generate_github_app_jwt(app_id: str, private_key: str) -> str:
@@ -195,7 +156,7 @@ def get_token_for_repository(repository: str, app_id: str, private_key: str) -> 
     return generate_installation_token(installation_id, app_jwt)
 
 
-@retry_on_failure(max_attempts=3, delay=2)
+@retry_sync(max_retries=2, initial_delay=2.0, backoff_factor=2.0, should_retry=_should_retry_dispatch_exception)
 def dispatch_event(
     repository: str, event_type: str, client_payload: dict[str, Any], token: str, timeout: int = 10
 ) -> tuple[bool, str]:
@@ -259,7 +220,7 @@ def dispatch_event(
         return False, "UNKNOWN_ERROR"
 
 
-@retry_on_failure(max_attempts=3, delay=2)
+@retry_sync(max_retries=2, initial_delay=2.0, backoff_factor=2.0, should_retry=_should_retry_dispatch_exception)
 def dispatch_workflow(
     repository: str, workflow_file: str, ref: str, inputs: dict[str, Any], token: str, timeout: int = 10
 ) -> tuple[bool, str]:

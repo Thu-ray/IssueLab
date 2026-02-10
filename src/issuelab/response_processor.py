@@ -20,6 +20,7 @@ from issuelab.mention_policy import (
     clean_mentions_in_text,
     filter_mentions,
 )
+from issuelab.utils.yaml_text import extract_yaml_block
 
 logger = logging.getLogger(__name__)
 
@@ -122,11 +123,6 @@ def _truncate_text(text: str, limit: int) -> str:
     return text[:limit]
 
 
-def _extract_yaml_block(text: str) -> str:
-    match = re.search(r"```yaml(.*?)```", text, re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else ""
-
-
 def _extract_sources_from_parsed_yaml(parsed: Any) -> list[str]:
     if not isinstance(parsed, dict):
         return []
@@ -155,7 +151,7 @@ def _extract_sources_from_parsed_yaml(parsed: Any) -> list[str]:
 
 
 def extract_mentions_from_yaml(response_text: str) -> list[str]:
-    yaml_text = _extract_yaml_block(response_text)
+    yaml_text = extract_yaml_block(response_text)
     if not yaml_text:
         return []
     try:
@@ -204,7 +200,7 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
 
     # Render YAML-only responses into markdown for user-facing agents.
     if summary_marker not in response_text:
-        yaml_text = _extract_yaml_block(response_text)
+        yaml_text = extract_yaml_block(response_text)
         if yaml_text and agent_name not in {"arxiv_observer", "pubmed_observer"}:
             try:
                 parsed = yaml.safe_load(yaml_text) or {}
@@ -338,7 +334,7 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
     confidence = "medium"
     parsed_mentions: list[str] = []
     parsed_sources: list[str] = []
-    yaml_text = _extract_yaml_block(yaml_block)
+    yaml_text = extract_yaml_block(yaml_block)
     parsed = None
     if yaml_text:
         try:
@@ -531,7 +527,7 @@ def process_agent_response(
 
     normalized_response, format_warnings = _normalize_agent_output(response_text, agent_name)
     if agent_name == "gqy20":
-        yaml_text = _extract_yaml_block(response_text)
+        yaml_text = extract_yaml_block(response_text)
         parsed = None
         if yaml_text:
             try:

@@ -75,12 +75,12 @@ class TestMainTriggerComment:
                 captured["trigger_comment"] = trigger_comment
                 return {}
 
-            monkeypatch.setattr(main_mod, "run_agents_parallel", _fake_run)
+            monkeypatch.setattr("issuelab.commands.common.run_agents_parallel", _fake_run)
             monkeypatch.setattr(main_mod, "parse_agents_arg", lambda s: ["gqy20"])
 
             monkeypatch.setenv("PYTHONPATH", "src")
             monkeypatch.setattr(os, "environ", os.environ)
-            monkeypatch.setattr(main_mod, "post_comment", lambda *a, **k: True)
+            monkeypatch.setattr("issuelab.commands.common.post_comment", lambda *a, **k: True)
 
             with patch("sys.argv", ["issuelab", "execute", "--issue", "1", "--agents", "gqy20"]):
                 main_mod.main()
@@ -116,8 +116,8 @@ class TestMainTriggerComment:
             posted["called"] = True
             return True
 
-        monkeypatch.setattr(main_mod, "run_agents_parallel", _fake_run)
-        monkeypatch.setattr(main_mod, "post_comment", _fake_post)
+        monkeypatch.setattr("issuelab.commands.common.run_agents_parallel", _fake_run)
+        monkeypatch.setattr("issuelab.commands.common.post_comment", _fake_post)
 
         with (
             patch("issuelab.tools.github.write_issue_context_file", lambda *a, **k: "/tmp/issue_1.md"),
@@ -158,8 +158,8 @@ class TestMainTriggerComment:
             posted["agent_name"] = agent_name
             return True
 
-        monkeypatch.setattr(main_mod, "run_agents_parallel", _fake_run)
-        monkeypatch.setattr(main_mod, "post_comment", _fake_post)
+        monkeypatch.setattr("issuelab.commands.common.run_agents_parallel", _fake_run)
+        monkeypatch.setattr("issuelab.commands.common.post_comment", _fake_post)
 
         with (
             patch("issuelab.tools.github.write_issue_context_file", lambda *a, **k: "/tmp/issue_1.md"),
@@ -189,16 +189,13 @@ class TestObserveBatchUsesGetIssueInfo:
                 "comment_count": 1,
             }
 
-        async def fake_run_observer_batch(issue_data_list):
+        async def fake_run_observer_batch(issue_data_list, max_parallel=5):
             return []
 
-        monkeypatch.setattr(main_mod, "get_issue_info", fake_get_issue_info)
+        monkeypatch.setattr("issuelab.commands.observer.get_issue_info", fake_get_issue_info)
         from issuelab import tools as tools_pkg
 
         monkeypatch.setattr(tools_pkg.github, "write_issue_context_file", lambda *a, **k: f"/tmp/issue_{a[0]}.md")
-        monkeypatch.setattr(
-            main_mod.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("subprocess.run called"))
-        )
         monkeypatch.setattr(
             __import__("issuelab.agents.observer").agents.observer,
             "run_observer_batch",

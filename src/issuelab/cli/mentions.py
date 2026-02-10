@@ -10,8 +10,9 @@
 import argparse
 import json
 import os
-import re
 import sys
+
+from issuelab.utils.mentions import extract_github_mentions
 
 
 def parse_github_mentions(text: str) -> list[str]:
@@ -32,23 +33,7 @@ def parse_github_mentions(text: str) -> list[str]:
         >>> parse_github_mentions("@alice @alice @bob")
         ['alice', 'bob']
     """
-    if not text:
-        return []
-
-    # 匹配 @username 模式
-    # GitHub 用户名规则：字母、数字、连字符、下划线，不能以连字符或下划线开头或结尾
-    pattern = r"@([a-zA-Z0-9_](?:[a-zA-Z0-9_-]*[a-zA-Z0-9_])?)"
-    matches = re.findall(pattern, text)
-
-    # 去重并保持顺序
-    seen = set()
-    result = []
-    for username in matches:
-        if username not in seen:
-            seen.add(username)
-            result.append(username)
-
-    return result
+    return extract_github_mentions(text)
 
 
 def write_github_output(mentions: list[str]) -> None:

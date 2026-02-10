@@ -142,3 +142,18 @@ class TestRetrySync:
         delay1 = call_times[1] - call_times[0]
         delay2 = call_times[2] - call_times[1]
         assert delay2 > delay1  # 第二次延迟应该更长
+
+    def test_decorator_non_retryable_exception_fails_fast(self):
+        """同步重试也应支持不可重试异常快速失败"""
+        call_count = 0
+
+        @retry_sync(max_retries=3, initial_delay=0.1, should_retry=lambda exc: not isinstance(exc, TimeoutError))
+        def timeout_fail():
+            nonlocal call_count
+            call_count += 1
+            raise TimeoutError("timeout")
+
+        with pytest.raises(TimeoutError):
+            timeout_fail()
+
+        assert call_count == 1

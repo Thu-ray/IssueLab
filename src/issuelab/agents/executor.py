@@ -26,6 +26,7 @@ from issuelab.agents.options import create_agent_options, format_mcp_servers_for
 from issuelab.agents.registry import is_system_agent
 from issuelab.logging_config import get_logger
 from issuelab.retry import retry_async
+from issuelab.utils.yaml_text import extract_yaml_block
 
 logger = get_logger(__name__)
 
@@ -339,16 +340,9 @@ def _extract_urls(text: str) -> list[str]:
     return urls
 
 
-def _extract_yaml_block(text: str) -> str:
-    match = re.search(r"```yaml(.*?)```", text, re.DOTALL | re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    return ""
-
-
 def _extract_sources_from_yaml(text: str) -> list[str]:
     """从 YAML sources 字段提取 URL。"""
-    yaml_text = _extract_yaml_block(text)
+    yaml_text = extract_yaml_block(text)
     if not yaml_text:
         return []
     try:
@@ -378,7 +372,7 @@ def _extract_sources_from_yaml(text: str) -> list[str]:
 
 
 def _validate_researcher_stage_output(text: str) -> tuple[bool, str]:
-    yaml_text = _extract_yaml_block(text)
+    yaml_text = extract_yaml_block(text)
     if not yaml_text:
         return False, "缺少 YAML 输出块"
 

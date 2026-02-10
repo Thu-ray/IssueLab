@@ -2,9 +2,11 @@
 
 from unittest.mock import patch
 
+import pytest
+
 
 class TestExtractMentionsFromYaml:
-    """测试从 YAML 提取 mentions"""
+    """测试 YAML mentions 兼容层（已废弃）"""
 
     def test_extract_mentions_list(self):
         from issuelab.response_processor import extract_mentions_from_yaml
@@ -20,7 +22,8 @@ mentions:
   - bob
 confidence: "high"
 ```"""
-        assert extract_mentions_from_yaml(text) == ["alice", "bob"]
+        with pytest.warns(DeprecationWarning):
+            assert extract_mentions_from_yaml(text) == ["alice", "bob"]
 
     def test_extract_mentions_with_at_prefix(self):
         from issuelab.response_processor import extract_mentions_from_yaml
@@ -34,7 +37,8 @@ mentions:
   - "@delta"
 confidence: "medium"
 ```"""
-        assert extract_mentions_from_yaml(text) == ["charlie", "delta"]
+        with pytest.warns(DeprecationWarning):
+            assert extract_mentions_from_yaml(text) == ["charlie", "delta"]
 
     def test_extract_mentions_invalid_items_filtered(self):
         from issuelab.response_processor import extract_mentions_from_yaml
@@ -49,12 +53,14 @@ mentions:
   - "ok_user"
 confidence: "low"
 ```"""
-        assert extract_mentions_from_yaml(text) == ["ok_user"]
+        with pytest.warns(DeprecationWarning):
+            assert extract_mentions_from_yaml(text) == ["ok_user"]
 
     def test_no_yaml_mentions(self):
         from issuelab.response_processor import extract_mentions_from_yaml
 
-        assert extract_mentions_from_yaml("No mentions here") == []
+        with pytest.warns(DeprecationWarning):
+            assert extract_mentions_from_yaml("No mentions here") == []
 
 
 class TestResponseFormatConfig:

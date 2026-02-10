@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import subprocess
+import warnings
 from pathlib import Path
 from typing import Any, cast
 
@@ -163,6 +164,15 @@ def _extract_sources_from_parsed_yaml(parsed: Any) -> list[str]:
 
 
 def extract_mentions_from_yaml(response_text: str) -> list[str]:
+    """Deprecated compatibility helper.
+
+    Main trigger pipeline now parses mentions from controlled markdown sections.
+    """
+    warnings.warn(
+        "extract_mentions_from_yaml is deprecated; use extract_controlled_mentions instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     yaml_text = extract_yaml_block(response_text)
     if not yaml_text:
         return []
@@ -357,7 +367,7 @@ def _normalize_agent_output(response_text: str, agent_name: str | None) -> tuple
             parsed_confidence = str(parsed.get("confidence", "")).lower()
             if parsed_confidence in {"high", "medium", "low"}:
                 confidence = parsed_confidence
-            parsed_mentions = extract_mentions_from_yaml(response_text)
+            parsed_mentions = extract_controlled_mentions(response_text)
             parsed_sources = _extract_sources_from_parsed_yaml(parsed)
 
     def _yaml_escape(value: str) -> str:
